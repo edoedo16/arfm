@@ -4,909 +4,852 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <title>Ficus minahasae — AR</title>
-<!-- Three.js r128 (compatible with AR.js) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<!-- AR.js for marker tracking (iOS + Android fallback) -->
-<script src="https://raw.githack.com/AR-js-org/AR.js/master/three.js/build/ar-threex-location-only.js" onerror="arjsFailed=true"></script>
-<script src="https://raw.githack.com/AR-js-org/AR.js/master/three.js/build/ar-threex.js" onerror="arjsFailed=true"></script>
-
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
-html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Segoe UI',system-ui,sans-serif;}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Segoe UI',system-ui,sans-serif;color:#fff;}
 
-/* ── Loading screen ── */
-#loading-screen{
-  position:fixed;inset:0;background:linear-gradient(160deg,#0a1f0e 0%,#051008 100%);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  z-index:1000;transition:opacity 0.6s;
+#cam-video{
+  position:fixed;inset:0;width:100%;height:100%;
+  object-fit:cover;z-index:0;display:none;
 }
-.load-logo{font-size:13px;letter-spacing:4px;text-transform:uppercase;color:#4caf6e;margin-bottom:6px;}
-.load-name{font-size:26px;font-style:italic;color:#e8f5e9;margin-bottom:4px;}
-.load-sub{font-size:12px;color:#6d9970;margin-bottom:30px;}
-.load-spinner{width:38px;height:38px;border:2px solid #2e7d52;border-top-color:#4caf6e;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:14px;}
-.load-status{font-size:12px;color:#6d9970;letter-spacing:1px;}
-@keyframes spin{to{transform:rotate(360deg);}}
+#three-canvas{
+  position:fixed;inset:0;width:100%;height:100%;
+  z-index:1;display:none;
+}
 
-/* ── Mode selector ── */
-#mode-screen{
-  position:fixed;inset:0;background:linear-gradient(160deg,#0a1f0e 0%,#051008 100%);
+/* LOADING */
+#scr-load{
+  position:fixed;inset:0;z-index:200;
+  background:linear-gradient(160deg,#081a0c,#040c06);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  transition:opacity 0.5s;
+}
+.sp{width:36px;height:36px;border:2px solid #2e7d52;border-top-color:#4caf6e;border-radius:50%;animation:sp 1s linear infinite;}
+@keyframes sp{to{transform:rotate(360deg);}}
+.lt{font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#4caf6e;}
+.ln{font-size:23px;font-style:italic;color:#e8f5e9;}
+.ls{font-size:11px;color:#6d9970;}
+#ld-msg{font-size:11px;color:#4caf6e;letter-spacing:1px;min-height:16px;}
+
+/* HOME */
+#scr-home{
+  position:fixed;inset:0;z-index:90;
+  background:linear-gradient(160deg,#081a0c,#040c06);
   display:none;flex-direction:column;align-items:center;justify-content:center;
-  z-index:999;padding:24px;
+  padding:24px;
 }
-.mode-title{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#4caf6e;margin-bottom:8px;}
-.mode-name{font-size:24px;font-style:italic;color:#e8f5e9;margin-bottom:6px;text-align:center;}
-.mode-desc{font-size:12px;color:#6d9970;margin-bottom:32px;text-align:center;line-height:1.6;max-width:300px;}
-.mode-cards{display:flex;flex-direction:column;gap:14px;width:100%;max-width:340px;}
-.mode-card{
-  background:rgba(255,255,255,0.04);border:1px solid rgba(78,175,110,0.3);
-  border-radius:14px;padding:18px 20px;cursor:pointer;transition:all 0.2s;
-  display:flex;gap:16px;align-items:center;
+.hm-tag{font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#4caf6e;margin-bottom:5px;}
+.hm-n{font-size:24px;font-style:italic;color:#e8f5e9;margin-bottom:3px;text-align:center;}
+.hm-s{font-size:11px;color:#6d9970;margin-bottom:26px;text-align:center;line-height:1.55;max-width:280px;}
+.mlist{width:100%;max-width:330px;display:flex;flex-direction:column;gap:11px;}
+.mbtn{
+  background:rgba(255,255,255,0.04);border:1px solid rgba(78,175,110,0.28);
+  border-radius:13px;padding:15px 16px;display:flex;align-items:center;gap:13px;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;transition:all 0.15s;
 }
-.mode-card:hover,.mode-card:active{background:rgba(46,125,82,0.2);border-color:#4caf6e;}
-.mode-card.disabled{opacity:0.4;cursor:not-allowed;pointer-events:none;}
-.mc-icon{font-size:32px;flex-shrink:0;}
-.mc-body{}
-.mc-title{font-size:14px;color:#e8f5e9;margin-bottom:3px;}
-.mc-sub{font-size:11px;color:#6d9970;line-height:1.5;}
-.mc-badge{display:inline-block;background:rgba(200,168,75,0.15);border:1px solid #c8a84b;border-radius:4px;padding:1px 6px;font-size:9px;color:#c8a84b;margin-top:4px;letter-spacing:1px;}
-.mc-badge.green{background:rgba(76,175,110,0.15);border-color:#4caf6e;color:#4caf6e;}
+.mbtn:active{background:rgba(46,125,82,0.22);border-color:#4caf6e;transform:scale(0.98);}
+.mbtn.off{opacity:0.35;pointer-events:none;}
+.mi{font-size:28px;flex-shrink:0;}
+.mt{font-size:13px;color:#e8f5e9;margin-bottom:2px;}
+.md{font-size:11px;color:#6d9970;line-height:1.45;}
+.mk{display:inline-block;margin-top:4px;padding:1px 7px;border-radius:4px;font-size:9px;letter-spacing:1px;border:1px solid #4caf6e;color:#4caf6e;}
+.mk.g{border-color:#c8a84b;color:#c8a84b;}
 
-/* ── AR canvas (WebXR mode) ── */
-#ar-canvas{position:fixed;inset:0;display:none;}
-
-/* ── AR.js video (marker mode) ── */
-#arjs-container{position:fixed;inset:0;display:none;}
-#arjs-canvas{position:absolute;inset:0;width:100%!important;height:100%!important;}
-
-/* ── HUD overlay ── */
+/* HUD */
 #hud{
-  position:fixed;inset:0;pointer-events:none;z-index:100;
-  display:none;flex-direction:column;justify-content:space-between;
+  position:fixed;inset:0;z-index:10;display:none;
+  flex-direction:column;justify-content:space-between;pointer-events:none;
 }
-/* Top info */
 #hud-top{
-  pointer-events:auto;
-  margin:16px;background:rgba(0,0,0,0.55);backdrop-filter:blur(10px);
-  border:1px solid rgba(78,175,110,0.25);border-radius:14px;padding:12px 16px;
-  display:flex;align-items:center;gap:12px;
+  pointer-events:auto;margin:13px;
+  background:rgba(0,0,0,0.55);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border:1px solid rgba(78,175,110,0.22);border-radius:13px;
+  padding:10px 13px;display:flex;align-items:center;gap:10px;
 }
-#hud-icon{font-size:24px;}
-#hud-info{}
-#hud-species{font-size:14px;font-style:italic;color:#e8f5e9;}
-#hud-mode-label{font-size:10px;color:#4caf6e;letter-spacing:1px;text-transform:uppercase;}
-#hud-back{margin-left:auto;background:rgba(78,175,110,0.15);border:1px solid rgba(78,175,110,0.4);border-radius:8px;padding:6px 12px;font-size:11px;color:#81c784;cursor:pointer;pointer-events:auto;font-family:inherit;}
-
-/* Bottom controls */
-#hud-bottom{
-  pointer-events:auto;
-  margin:0 16px 24px;display:flex;flex-direction:column;align-items:center;gap:10px;
+.hn{font-size:13px;font-style:italic;color:#e8f5e9;}
+.hm{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:#4caf6e;}
+#btn-exit{
+  margin-left:auto;background:rgba(255,255,255,0.08);
+  border:1px solid rgba(255,255,255,0.16);border-radius:8px;
+  padding:6px 11px;font-size:11px;color:#ccc;cursor:pointer;
+  font-family:inherit;-webkit-tap-highlight-color:transparent;
 }
 #hud-hint{
-  background:rgba(0,0,0,0.55);backdrop-filter:blur(8px);
-  border:1px solid rgba(78,175,110,0.2);border-radius:10px;
-  padding:8px 16px;font-size:12px;color:#a5c8ac;text-align:center;
+  pointer-events:none;margin:0 auto;padding:8px 16px;
+  background:rgba(0,0,0,0.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  border:1px solid rgba(78,175,110,0.18);border-radius:10px;
+  font-size:12px;color:#a5c8ac;text-align:center;max-width:290px;
 }
-#hud-controls{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;}
-.hud-btn{
-  background:rgba(0,0,0,0.6);backdrop-filter:blur(8px);
-  border:1px solid rgba(78,175,110,0.35);border-radius:10px;
-  padding:9px 14px;font-size:12px;color:#a5c8ac;cursor:pointer;
-  transition:all 0.2s;font-family:inherit;
+#hud-bot{
+  pointer-events:auto;margin:0 13px 18px;
+  display:flex;flex-direction:column;align-items:center;gap:9px;
 }
-.hud-btn:active,.hud-btn.active{background:rgba(46,125,82,0.5);border-color:#4caf6e;color:#e8f5e9;}
+#ctrl-row{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;}
+.cb{
+  background:rgba(0,0,0,0.6);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  border:1px solid rgba(78,175,110,0.30);border-radius:10px;
+  padding:9px 13px;font-size:12px;color:#a5c8ac;cursor:pointer;
+  font-family:inherit;-webkit-tap-highlight-color:transparent;
+}
+.cb:active,.cb.on{background:rgba(46,125,82,0.45);border-color:#4caf6e;color:#e8f5e9;}
 
-/* Place button */
 #btn-place{
-  width:70px;height:70px;border-radius:50%;
-  background:rgba(76,175,110,0.9);border:3px solid #fff;
-  font-size:28px;cursor:pointer;display:none;
-  align-items:center;justify-content:center;
-  box-shadow:0 4px 20px rgba(76,175,110,0.5);
-  transition:transform 0.15s;
+  display:none;width:66px;height:66px;border-radius:50%;
+  background:#4caf6e;border:3px solid rgba(255,255,255,0.82);
+  font-size:24px;cursor:pointer;align-items:center;justify-content:center;
+  box-shadow:0 4px 22px rgba(76,175,110,0.5);
+  -webkit-tap-highlight-color:transparent;transition:transform 0.12s;
 }
-#btn-place:active{transform:scale(0.92);}
+#btn-place:active{transform:scale(0.88);}
 
-/* Reticle */
-#reticle-svg{
-  position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);
-  pointer-events:none;z-index:50;display:none;
-  filter:drop-shadow(0 0 8px rgba(76,175,110,0.8));
+/* Reticle SVG */
+#reticle{
+  display:none;position:fixed;left:50%;top:50%;
+  transform:translate(-50%,-50%);pointer-events:none;z-index:8;
+  filter:drop-shadow(0 0 6px rgba(76,175,110,0.7));
+  animation:pulse 1.5s ease-in-out infinite;
 }
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.55;}}
 
-/* Scale info toast */
-#scale-toast{
+/* Toast */
+#toast{
   position:fixed;bottom:160px;left:50%;transform:translateX(-50%);
-  background:rgba(0,0,0,0.7);border:1px solid rgba(78,175,110,0.3);
+  background:rgba(0,0,0,0.70);border:1px solid rgba(78,175,110,0.28);
   border-radius:10px;padding:8px 16px;font-size:12px;color:#a5c8ac;
-  pointer-events:none;z-index:200;opacity:0;transition:opacity 0.3s;white-space:nowrap;
+  pointer-events:none;z-index:300;white-space:nowrap;
+  opacity:0;transition:opacity 0.22s;
 }
-#scale-toast.show{opacity:1;}
+#toast.show{opacity:1;}
 
-/* Marker instructions overlay */
-#marker-guide{
-  position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:500;
-  display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px;
+/* Error screen */
+#scr-err{
+  position:fixed;inset:0;z-index:210;
+  background:linear-gradient(160deg,#1a0808,#090404);
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  padding:26px;text-align:center;gap:13px;
 }
-.marker-box{
-  background:rgba(10,30,15,0.95);border:1px solid rgba(78,175,110,0.3);
-  border-radius:16px;padding:24px;max-width:340px;text-align:center;
-}
-.marker-title{font-size:16px;color:#e8f5e9;margin-bottom:8px;}
-.marker-sub{font-size:12px;color:#6d9970;margin-bottom:20px;line-height:1.6;}
-/* Hiro marker rendered as SVG */
-.marker-img{width:140px;height:140px;margin:0 auto 16px;display:block;}
-.marker-btn{
-  background:#2e7d52;border:none;border-radius:8px;
-  color:#e8f5e9;padding:10px 24px;font-size:13px;cursor:pointer;
-  font-family:inherit;width:100%;
-}
+.ei{font-size:44px;}
+.et{font-size:17px;color:#e88;}
+.em{font-size:12px;color:#a88;line-height:1.65;max-width:280px;}
+.eb{background:#2e7d52;border:none;border-radius:8px;color:#fff;padding:10px 26px;font-size:13px;cursor:pointer;font-family:inherit;}
+.eb2{background:#1a2a1e;border:1px solid #2e7d52;border-radius:8px;color:#4caf6e;padding:9px 22px;font-size:12px;cursor:pointer;font-family:inherit;}
 </style>
 </head>
 <body>
 
-<!-- ══════════ LOADING ══════════ -->
-<div id="loading-screen">
-  <div class="load-logo">Botanika 3D</div>
-  <div class="load-name">Ficus minahasae</div>
-  <div class="load-sub">Beringin Minahasa · Ara Sulawesi</div>
-  <div class="load-spinner"></div>
-  <div class="load-status" id="load-status">Memuat model 3D...</div>
+<video id="cam-video" playsinline autoplay muted></video>
+<canvas id="three-canvas"></canvas>
+
+<!-- LOADING -->
+<div id="scr-load">
+  <div class="lt">Botanika AR</div>
+  <div class="ln">Ficus minahasae</div>
+  <div class="ls">Beringin Minahasa · Ara Sulawesi</div>
+  <div class="sp"></div>
+  <div id="ld-msg">Memuat model...</div>
 </div>
 
-<!-- ══════════ MODE SELECTOR ══════════ -->
-<div id="mode-screen">
-  <div class="mode-title">Botanika AR</div>
-  <div class="mode-name">Ficus minahasae</div>
-  <div class="mode-desc">Pilih mode AR untuk melihat pohon Beringin Minahasa di dunia nyata</div>
-  <div class="mode-cards">
-    <div class="mode-card" id="card-webxr">
-      <div class="mc-icon">📱</div>
-      <div class="mc-body">
-        <div class="mc-title">Surface AR</div>
-        <div class="mc-sub">Pohon muncul di lantai — tap untuk menempatkan. Gerak kamera untuk mendeteksi permukaan.</div>
-        <div class="mc-badge green" id="webxr-badge">Android · Chrome</div>
+<!-- HOME -->
+<div id="scr-home">
+  <div class="hm-tag">Botanika AR</div>
+  <div class="hm-n">Ficus minahasae</div>
+  <div class="hm-s">Pilih mode untuk melihat pohon Beringin Minahasa</div>
+  <div class="mlist">
+
+    <div class="mbtn" id="mb-cam">
+      <div class="mi">📷</div>
+      <div>
+        <div class="mt">AR Kamera</div>
+        <div class="md">Pohon tampil di atas feed kamera langsung. Tap untuk menempatkan.</div>
+        <span class="mk">Android &amp; iOS · Semua browser</span>
       </div>
     </div>
-    <div class="mode-card" id="card-marker">
-      <div class="mc-icon">🎯</div>
-      <div class="mc-body">
-        <div class="mc-title">Marker AR</div>
-        <div class="mc-sub">Arahkan kamera ke marker Hiro untuk memunculkan pohon di atasnya.</div>
-        <div class="mc-badge">iOS · Android · Semua</div>
+
+    <div class="mbtn" id="mb-xr">
+      <div class="mi">🌍</div>
+      <div>
+        <div class="mt">Surface AR (WebXR)</div>
+        <div class="md">Pohon nempel di lantai nyata via ARCore. Chrome Android + ARCore.</div>
+        <span class="mk g" id="xr-tag">Mengecek...</span>
       </div>
     </div>
-    <div class="mode-card" id="card-3d">
-      <div class="mc-icon">🌳</div>
-      <div class="mc-body">
-        <div class="mc-title">3D Viewer</div>
-        <div class="mc-sub">Mode desktop — putar dan eksplorasi model 3D tanpa kamera.</div>
-        <div class="mc-badge">Semua perangkat</div>
+
+    <div class="mbtn" id="mb-3d">
+      <div class="mi">🌳</div>
+      <div>
+        <div class="mt">3D Viewer</div>
+        <div class="md">Putar &amp; eksplorasi model 3D tanpa kamera.</div>
+        <span class="mk">Semua perangkat</span>
       </div>
     </div>
+
   </div>
 </div>
 
-<!-- ══════════ WEBXR CANVAS ══════════ -->
-<canvas id="ar-canvas"></canvas>
-
-<!-- ══════════ AR.JS CONTAINER ══════════ -->
-<div id="arjs-container">
-  <canvas id="arjs-canvas"></canvas>
-</div>
-
-<!-- ══════════ RETICLE (WebXR surface indicator) ══════════ -->
-<svg id="reticle-svg" width="80" height="80" viewBox="0 0 80 80">
-  <ellipse cx="40" cy="40" rx="36" ry="12" fill="none" stroke="#4caf6e" stroke-width="2" opacity="0.9"/>
-  <line x1="40" y1="28" x2="40" y2="20" stroke="#4caf6e" stroke-width="2" opacity="0.7"/>
-  <line x1="52" y1="32" x2="58" y2="26" stroke="#4caf6e" stroke-width="2" opacity="0.5"/>
-  <line x1="28" y1="32" x2="22" y2="26" stroke="#4caf6e" stroke-width="2" opacity="0.5"/>
-</svg>
-
-<!-- ══════════ HUD ══════════ -->
+<!-- HUD -->
 <div id="hud">
   <div id="hud-top">
-    <div id="hud-icon">🌳</div>
-    <div id="hud-info">
-      <div id="hud-species">Ficus minahasae</div>
-      <div id="hud-mode-label" id="hud-mode-label">Surface AR</div>
+    <span style="font-size:20px;">🌳</span>
+    <div>
+      <div class="hn">Ficus minahasae</div>
+      <div class="hm" id="hud-mode">AR Kamera</div>
     </div>
-    <button id="hud-back">✕ Keluar</button>
+    <button id="btn-exit">✕ Keluar</button>
   </div>
-  <div id="hud-bottom">
-    <div id="hud-hint">Gerakkan kamera ke lantai untuk mendeteksi permukaan</div>
-    <div id="hud-controls">
-      <button class="hud-btn" id="btn-scale-down">⊖ Kecil</button>
-      <button class="hud-btn" id="btn-rotate">↺ Putar</button>
-      <button class="hud-btn active" id="btn-fruiting">🌰 Berbuah</button>
-      <button class="hud-btn" id="btn-scale-up">⊕ Besar</button>
+  <div id="hud-hint">Memuat...</div>
+  <div id="hud-bot">
+    <div id="ctrl-row">
+      <button class="cb" id="c-sm">⊖ Kecil</button>
+      <button class="cb" id="c-rt">↺ Putar</button>
+      <button class="cb" id="c-fr">🌰 Berbuah</button>
+      <button class="cb" id="c-lg">⊕ Besar</button>
     </div>
     <button id="btn-place">🌱</button>
   </div>
 </div>
 
-<div id="scale-toast"></div>
+<!-- Reticle -->
+<svg id="reticle" width="90" height="34" viewBox="0 0 90 34">
+  <ellipse cx="45" cy="17" rx="40" ry="13" fill="none" stroke="#4caf6e" stroke-width="2.5" stroke-dasharray="7 4"/>
+  <circle cx="45" cy="17" r="3" fill="#4caf6e" opacity="0.7"/>
+</svg>
 
-<!-- ══════════ MARKER GUIDE ══════════ -->
-<div id="marker-guide">
-  <div class="marker-box">
-    <div class="marker-title">Marker Hiro</div>
-    <div class="marker-sub">Cetak atau tampilkan marker ini di layar lain, lalu arahkan kamera ke sana.</div>
-    <!-- Hiro marker as pure SVG (no external image needed) -->
-    <svg class="marker-img" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-      <rect width="100" height="100" fill="white"/>
-      <rect x="10" y="10" width="80" height="80" fill="black"/>
-      <rect x="17" y="17" width="66" height="66" fill="white"/>
-      <!-- Hiro pattern interior -->
-      <rect x="24" y="24" width="12" height="12" fill="black"/>
-      <rect x="64" y="24" width="12" height="12" fill="black"/>
-      <rect x="24" y="64" width="12" height="12" fill="black"/>
-      <rect x="64" y="64" width="12" height="12" fill="black"/>
-      <rect x="38" y="24" width="24" height="8" fill="black"/>
-      <rect x="38" y="68" width="24" height="8" fill="black"/>
-      <rect x="24" y="38" width="8" height="24" fill="black"/>
-      <rect x="68" y="38" width="8" height="24" fill="black"/>
-      <rect x="38" y="38" width="24" height="24" fill="black"/>
-      <rect x="44" y="44" width="12" height="12" fill="white"/>
-    </svg>
-    <button class="marker-btn" id="btn-dismiss-marker">Mulai Scan →</button>
-  </div>
+<div id="toast"></div>
+
+<!-- ERROR -->
+<div id="scr-err">
+  <div class="ei">📵</div>
+  <div class="et" id="err-title">Terjadi Kesalahan</div>
+  <div class="em" id="err-msg"></div>
+  <button class="eb" id="err-back">← Kembali ke Menu</button>
+  <button class="eb2" id="err-3d">Buka 3D Viewer</button>
 </div>
 
 <script>
 (function(){
 'use strict';
 
-// ══════════════════════════════════════════════════
-// HELPERS & NOISE
-// ══════════════════════════════════════════════════
-let seed=42;
-function rng(){seed=(seed*1664525+1013904223)&0xffffffff;return(seed>>>0)/0xffffffff;}
+// ─── DOM helpers ───────────────────────────────
+const $=id=>document.getElementById(id);
+function showFlex(id){$(id).style.display='flex';}
+function hide(id){$(id).style.display='none';}
+function setHint(t){$('hud-hint').textContent=t;}
+let _toastT=null;
+function toast(m,d=2000){const e=$('toast');e.textContent=m;e.classList.add('show');clearTimeout(_toastT);_toastT=setTimeout(()=>e.classList.remove('show'),d);}
+function setLdMsg(m){$('ld-msg').textContent=m;}
 
-function hash2(x,y){return(Math.sin(x*127.1+y*311.7)*43758.5453)%1;}
-function sn(x,y){const ix=Math.floor(x),iy=Math.floor(y),fx=x-ix,fy=y-iy,ux=fx*fx*(3-2*fx),uy=fy*fy*(3-2*fy);return hash2(ix,iy)*(1-ux)*(1-uy)+hash2(ix+1,iy)*ux*(1-uy)+hash2(ix,iy+1)*(1-ux)*uy+hash2(ix+1,iy+1)*ux*uy;}
+// ─── Seeded RNG ────────────────────────────────
+let _s=42;
+function rng(){_s=(_s*1664525+1013904223)&0xffffffff;return(_s>>>0)/0xffffffff;}
+
+// ─── Noise ─────────────────────────────────────
+function h2(x,y){return(Math.sin(x*127.1+y*311.7)*43758.5453)%1;}
+function sn(x,y){const ix=Math.floor(x),iy=Math.floor(y),fx=x-ix,fy=y-iy,ux=fx*fx*(3-2*fx),uy=fy*fy*(3-2*fy);return h2(ix,iy)*(1-ux)*(1-uy)+h2(ix+1,iy)*ux*(1-uy)+h2(ix,iy+1)*(1-ux)*uy+h2(ix+1,iy+1)*ux*uy;}
 function fbm(x,y,o){let v=0,a=0.5,f=1;for(let i=0;i<o;i++){v+=a*sn(x*f,y*f);a*=0.5;f*=2.1;}return v;}
 
-// ══════════════════════════════════════════════════
-// TEXTURE GENERATORS
-// ══════════════════════════════════════════════════
-function makeBarkTex(){
+// ─── TEXTURES ──────────────────────────────────
+function mkBark(){
   const W=128,H=256,c=document.createElement('canvas');c.width=W;c.height=H;
-  const ctx=c.getContext('2d');const img=ctx.createImageData(W,H);
-  for(let y=0;y<H;y++){for(let x=0;x<W;x++){
-    const n=fbm(x/W*5,y/H*8,5);
-    const g=Math.pow(Math.abs(Math.sin(x/W*Math.PI*16+n*3)),0.35);
-    const f=fbm(x/W*3+4,y/H*4+2,3)>0.62?0.5:1;
-    const i4=(y*W+x)*4;
-    img.data[i4]=Math.min(255,Math.floor((36+n*32+g*20)*f));
-    img.data[i4+1]=Math.min(255,Math.floor((18+n*16+g*10)*f));
-    img.data[i4+2]=Math.min(255,Math.floor((7+n*8+g*4)*f));
-    img.data[i4+3]=255;
-  }}
+  const ctx=c.getContext('2d'),img=ctx.createImageData(W,H);
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    const n=fbm(x/W*5,y/H*8,5),g=Math.pow(Math.abs(Math.sin(x/W*Math.PI*16+n*3)),0.35),fi=fbm(x/W*3+4,y/H*4+2,3)>0.62?0.5:1,i4=(y*W+x)*4;
+    img.data[i4]=Math.min(255,Math.floor((35+n*30+g*18)*fi));img.data[i4+1]=Math.min(255,Math.floor((17+n*14+g*9)*fi));img.data[i4+2]=Math.min(255,Math.floor((6+n*7+g*4)*fi));img.data[i4+3]=255;
+  }
   ctx.putImageData(img,0,0);
-  ctx.strokeStyle='rgba(70,38,15,0.5)';ctx.lineWidth=1.5;
-  for(let i=0;i<30;i++){const lx=Math.random()*W,ly=Math.random()*H,ll=4+Math.random()*16;ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(lx+ll,ly+(Math.random()-0.5)*2);ctx.stroke();}
-  const t=new THREE.CanvasTexture(c);t.wrapS=THREE.RepeatWrapping;t.wrapT=THREE.RepeatWrapping;t.repeat.set(2,3);return t;
+  ctx.strokeStyle='rgba(60,30,8,0.45)';ctx.lineWidth=1.5;
+  for(let i=0;i<25;i++){const lx=Math.random()*W,ly=Math.random()*H,ll=4+Math.random()*14;ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(lx+ll,ly+(Math.random()-0.5)*2);ctx.stroke();}
+  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(2,3);return t;
 }
-
-function makeGndTex(){
+function mkGnd(){
   const W=128,H=128,c=document.createElement('canvas');c.width=W;c.height=H;
-  const ctx=c.getContext('2d');const img=ctx.createImageData(W,H);
-  for(let y=0;y<H;y++){for(let x=0;x<W;x++){
-    const n=fbm(x/W*6,y/H*6,4);const i4=(y*W+x)*4;
-    img.data[i4]=Math.floor(12+n*20);img.data[i4+1]=Math.floor(22+n*28);img.data[i4+2]=Math.floor(8+n*12);img.data[i4+3]=255;
-  }}
+  const ctx=c.getContext('2d'),img=ctx.createImageData(W,H);
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){const n=fbm(x/W*6,y/H*6,4),i4=(y*W+x)*4;img.data[i4]=Math.floor(12+n*20);img.data[i4+1]=Math.floor(22+n*28);img.data[i4+2]=Math.floor(8+n*12);img.data[i4+3]=255;}
   ctx.putImageData(img,0,0);
-  const t=new THREE.CanvasTexture(c);t.wrapS=THREE.RepeatWrapping;t.wrapT=THREE.RepeatWrapping;t.repeat.set(4,4);return t;
+  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(4,4);return t;
 }
-
-function makeFigTex(){
+function mkFig(){
   const W=32,H=32,c=document.createElement('canvas');c.width=W;c.height=H;
-  const ctx=c.getContext('2d');const img=ctx.createImageData(W,H);
-  for(let y=0;y<H;y++){for(let x=0;x<W;x++){
-    const n=fbm(x/W*5,y/H*5,3);const i4=(y*W+x)*4;
-    img.data[i4]=Math.floor(95+n*65);img.data[i4+1]=Math.floor(25+n*28);img.data[i4+2]=Math.floor(7+n*12);img.data[i4+3]=255;
-  }}
+  const ctx=c.getContext('2d'),img=ctx.createImageData(W,H);
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){const n=fbm(x/W*5,y/H*5,3),i4=(y*W+x)*4;img.data[i4]=Math.floor(95+n*62);img.data[i4+1]=Math.floor(24+n*26);img.data[i4+2]=Math.floor(6+n*12);img.data[i4+3]=255;}
   ctx.putImageData(img,0,0);
-  const g=ctx.createRadialGradient(W/2,H*0.12,0,W/2,H*0.12,W*0.2);
-  g.addColorStop(0,'rgba(3,1,0,0.95)');g.addColorStop(1,'rgba(0,0,0,0)');
-  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
-  return new THREE.CanvasTexture(c);
+  const g=ctx.createRadialGradient(W/2,H*0.12,0,W/2,H*0.12,W*0.2);g.addColorStop(0,'rgba(2,1,0,0.95)');g.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);return new THREE.CanvasTexture(c);
 }
-
-function makeRootTex(){
+function mkRoot(){
   const W=32,H=64,c=document.createElement('canvas');c.width=W;c.height=H;
-  const ctx=c.getContext('2d');const img=ctx.createImageData(W,H);
-  for(let y=0;y<H;y++){for(let x=0;x<W;x++){
-    const n=fbm(x/W*4,y/H*8,3);const s=Math.abs(Math.sin(x/W*Math.PI*7+n*2))*0.35;
-    const i4=(y*W+x)*4;
-    img.data[i4]=Math.floor(28+n*25+s*15);img.data[i4+1]=Math.floor(15+n*13+s*8);img.data[i4+2]=Math.floor(5+n*6+s*3);img.data[i4+3]=255;
-  }}
+  const ctx=c.getContext('2d'),img=ctx.createImageData(W,H);
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){const n=fbm(x/W*4,y/H*8,3),s=Math.abs(Math.sin(x/W*Math.PI*7+n*2))*0.33,i4=(y*W+x)*4;img.data[i4]=Math.floor(27+n*24+s*14);img.data[i4+1]=Math.floor(14+n*12+s*7);img.data[i4+2]=Math.floor(5+n*6+s*3);img.data[i4+3]=255;}
   ctx.putImageData(img,0,0);
-  const t=new THREE.CanvasTexture(c);t.wrapS=THREE.RepeatWrapping;t.wrapT=THREE.RepeatWrapping;t.repeat.set(1,5);return t;
+  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(1,5);return t;
 }
 
-// ══════════════════════════════════════════════════
-// BUILD TREE — returns a Three.js Group
-// Scale: ~0.012 (real-world: ~12m tall → 0.15m in AR default)
-// ══════════════════════════════════════════════════
-function buildTree(barkTex,gndTex,figTex,rootTex){
+// ─── BUILD TREE ────────────────────────────────
+function buildTree(bT,gT,fT,rT){
   const G=new THREE.Group();
-  const S=0.012; // world scale multiplier
-
-  // Materials
-  const barkMat=new THREE.MeshLambertMaterial({map:barkTex});
-  const barkDkMat=new THREE.MeshLambertMaterial({map:barkTex,color:0x7a5030});
-  const rootMat=new THREE.MeshLambertMaterial({map:rootTex});
-  const gndMat=new THREE.MeshLambertMaterial({map:gndTex});
-  const stemMat=new THREE.MeshLambertMaterial({color:0x140a02});
-  const figMats=[
-    new THREE.MeshLambertMaterial({map:figTex,color:0xb83808}),
-    new THREE.MeshLambertMaterial({map:figTex,color:0x982c06}),
-    new THREE.MeshLambertMaterial({map:figTex,color:0xc44010}),
-    new THREE.MeshLambertMaterial({map:figTex,color:0x3c1e08}),
-    new THREE.MeshLambertMaterial({map:figTex,color:0x501e06}),
+  const S=0.013;
+  const bM=new THREE.MeshLambertMaterial({map:bT});
+  const rM=new THREE.MeshLambertMaterial({map:rT});
+  const gM=new THREE.MeshLambertMaterial({map:gT});
+  const stM=new THREE.MeshLambertMaterial({color:0x140a02});
+  const fMs=[
+    new THREE.MeshLambertMaterial({map:fT,color:0xb83808}),
+    new THREE.MeshLambertMaterial({map:fT,color:0x962c06}),
+    new THREE.MeshLambertMaterial({map:fT,color:0xcc4210}),
+    new THREE.MeshLambertMaterial({map:fT,color:0x3c1e08}),
+    new THREE.MeshLambertMaterial({map:fT,color:0x501e06}),
   ];
-  const leafMats=[];
-  for(let i=0;i<7;i++){const h=0.265+i*0.013;leafMats.push(new THREE.MeshLambertMaterial({color:new THREE.Color().setHSL(h,0.55+rng()*0.28,0.13+rng()*0.13),side:THREE.DoubleSide}));}
+  const lMs=[];
+  for(let i=0;i<7;i++){const h=0.265+i*0.013;lMs.push(new THREE.MeshLambertMaterial({color:new THREE.Color().setHSL(h,0.55+rng()*0.28,0.13+rng()*0.13),side:THREE.DoubleSide}));}
 
-  // Fig geometry
-  function makeFigGeo(r){
-    const pts=[];
-    for(let i=0;i<=10;i++){const t=i/10;const w=Math.sin(t*Math.PI)*(r*(0.82+Math.sin(t*Math.PI*1.5)*0.18));pts.push(new THREE.Vector2(w,r*1.5*(t-0.5)));}
-    return new THREE.LatheGeometry(pts,8);
-  }
-  const figGR=makeFigGeo(S*5.5),figGU=makeFigGeo(S*4.2);
-  const stemGeo=new THREE.CylinderGeometry(S*0.5,S*0.75,S*4,4);
+  // fig geo
+  function mkFG(r){const pts=[];for(let i=0;i<=10;i++){const t=i/10,w=Math.sin(t*Math.PI)*r*(0.82+Math.sin(t*Math.PI*1.5)*0.18);pts.push(new THREE.Vector2(w,r*1.5*(t-0.5)));}return new THREE.LatheGeometry(pts,7);}
+  const fgR=mkFG(S*5.2),fgU=mkFG(S*3.9),stG=new THREE.CylinderGeometry(S*0.5,S*0.75,S*3.5,4);
 
-  function addFig(G,x,y,z){
+  function addFig(P,x,y,z){
     const ripe=rng()>0.32;
-    const fig=new THREE.Mesh(ripe?figGR:figGU,figMats[Math.floor(rng()*(ripe?3:2))+(ripe?0:3)]);
-    fig.position.set(x,y,z);fig.rotation.set((rng()-0.5)*0.5,rng()*Math.PI*2,(rng()-0.5)*0.5);fig.castShadow=true;
-    const sm=new THREE.Mesh(stemGeo,stemMat);sm.position.y=S*6;fig.add(sm);
-    G.add(fig);
+    const fi=new THREE.Mesh(ripe?fgR:fgU,fMs[Math.floor(rng()*(ripe?3:2))+(ripe?0:3)]);
+    fi.position.set(x,y,z);fi.rotation.set((rng()-0.5)*0.5,rng()*Math.PI*2,(rng()-0.5)*0.5);fi.castShadow=true;
+    const sm=new THREE.Mesh(stG,stM);sm.position.y=S*5.5;fi.add(sm);P.add(fi);
   }
-  function spawnFigs(G,x,y,z,n){for(let i=0;i<n;i++)addFig(G,x+(rng()-0.5)*S*18,y+(rng()-0.5)*S*14,z+(rng()-0.5)*S*18);}
+  function sFig(P,x,y,z,n){for(let i=0;i<n;i++)addFig(P,x+(rng()-0.5)*S*17,y+(rng()-0.5)*S*13,z+(rng()-0.5)*S*17);}
 
-  // Ground disc
-  const gnd=new THREE.Mesh(new THREE.CircleGeometry(S*130,48),gndMat);
-  gnd.rotation.x=-Math.PI/2;gnd.receiveShadow=true;G.add(gnd);
+  // ground
+  const gd=new THREE.Mesh(new THREE.CircleGeometry(S*120,44),gM);gd.rotation.x=-Math.PI/2;gd.receiveShadow=true;G.add(gd);
 
-  // Surface roots
-  for(let i=0;i<10;i++){
-    const angle=rng()*Math.PI*2,len=S*(80+rng()*180);
-    const pts=[];for(let j=0;j<=10;j++){const t=j/10;pts.push(new THREE.Vector3(Math.cos(angle+t*0.2*(rng()-0.5))*(S*65+t*len),-t*S*6+Math.sin(t*Math.PI)*S*4,Math.sin(angle+t*0.2*(rng()-0.5))*(S*65+t*len)));}
-    G.add(Object.assign(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),8,S*(3+rng()*4.5),5,false),new THREE.MeshLambertMaterial({map:rootTex,color:0x5c3a18})),{castShadow:true}));
+  // surface roots
+  for(let i=0;i<9;i++){
+    const a=rng()*Math.PI*2,len=S*(75+rng()*165);
+    const pts=[];for(let j=0;j<=10;j++){const t=j/10;pts.push(new THREE.Vector3(Math.cos(a+t*0.18*(rng()-0.5))*(S*60+t*len),-t*S*5,Math.sin(a+t*0.18*(rng()-0.5))*(S*60+t*len)));}
+    const sr=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),8,S*(2.8+rng()*4),5,false),new THREE.MeshLambertMaterial({map:rT,color:0x5c3a18}));
+    sr.castShadow=true;G.add(sr);
   }
 
-  // ── TRUNK SPINE — bent, thick ──
-  const SPINE=[
+  // fallen figs
+  for(let i=0;i<14;i++){
+    const a=rng()*Math.PI*2,r=S*(40+rng()*280);
+    const ff=new THREE.Mesh(new THREE.SphereGeometry(S*(3+rng()*2.5),5,4),fMs[3+Math.floor(rng()*2)]);
+    ff.position.set(Math.cos(a)*r,S*2.5,Math.sin(a)*r);ff.scale.y=0.55;G.add(ff);
+  }
+
+  // trunk spine — bent
+  const SP=[
     new THREE.Vector3(0,0,0),
-    new THREE.Vector3(S*25,S*120,S*12),
-    new THREE.Vector3(S*52,S*260,S*8),
-    new THREE.Vector3(S*65,S*410,-S*16),
-    new THREE.Vector3(S*44,S*550,-S*32),
-    new THREE.Vector3(S*16,S*690,-S*12),
-    new THREE.Vector3(0,S*800,0),
+    new THREE.Vector3(S*22,S*115,S*10),
+    new THREE.Vector3(S*48,S*248,S*6),
+    new THREE.Vector3(S*60,S*392,-S*14),
+    new THREE.Vector3(S*40,S*525,-S*30),
+    new THREE.Vector3(S*14,S*660,-S*10),
+    new THREE.Vector3(0,S*780,0),
   ];
-  const trunkCurve=new THREE.CatmullRomCurve3(SPINE);
+  const tC=new THREE.CatmullRomCurve3(SP);
 
-  // Build organic trunk mesh
-  function buildTrunk(){
-    const LONG=36,CIRC=13;
-    const verts=[],uvArr=[],idxArr=[];
-    for(let i=0;i<=LONG;i++){
-      const t=i/LONG,pt=trunkCurve.getPoint(t),tang=trunkCurve.getTangent(t).normalize();
-      const up=new THREE.Vector3(0,1,0);
-      const right=new THREE.Vector3().crossVectors(up,tang).normalize();
-      if(right.lengthSq()<0.001)right.set(1,0,0);
-      const fwd=new THREE.Vector3().crossVectors(tang,right).normalize();
-      const baseR=S*THREE.MathUtils.lerp(115,24,t);
-      for(let j=0;j<=CIRC;j++){
-        const angle=(j/CIRC)*Math.PI*2;
-        const nv=fbm(Math.cos(angle)*1.8+t*5,Math.sin(angle)*1.8+t*3,3)*0.22;
-        const knob=Math.sin(angle*3+t*7)*0.05+Math.sin(angle*2+t*4)*0.04;
-        const asym=0.11*Math.sin(angle+0.8)+0.06*Math.cos(angle*2+1.2);
-        const r=baseR*(1+nv+knob+asym);
-        verts.push(pt.x+right.x*Math.cos(angle)*r+fwd.x*Math.sin(angle)*r,pt.y+right.y*Math.cos(angle)*r+fwd.y*Math.sin(angle)*r,pt.z+right.z*Math.cos(angle)*r+fwd.z*Math.sin(angle)*r);
-        uvArr.push(j/CIRC,t*4);
+  // build organic trunk mesh
+  function buildTk(){
+    const LO=34,CI=12,vA=[],uA=[],iA=[];
+    for(let i=0;i<=LO;i++){
+      const t=i/LO,pt=tC.getPoint(t),tg=tC.getTangent(t).normalize();
+      const up=new THREE.Vector3(0,1,0),ri=new THREE.Vector3().crossVectors(up,tg).normalize();
+      if(ri.lengthSq()<0.001)ri.set(1,0,0);
+      const fw=new THREE.Vector3().crossVectors(tg,ri).normalize();
+      const bR=S*THREE.MathUtils.lerp(112,22,t);
+      for(let j=0;j<=CI;j++){
+        const ang=(j/CI)*Math.PI*2;
+        const nv=fbm(Math.cos(ang)*1.8+t*5,Math.sin(ang)*1.8+t*3,3)*0.21;
+        const kn=Math.sin(ang*3+t*7)*0.05,as=0.10*Math.sin(ang+0.8)+0.05*Math.cos(ang*2+1.2);
+        const r=bR*(1+nv+kn+as);
+        vA.push(pt.x+ri.x*Math.cos(ang)*r+fw.x*Math.sin(ang)*r,pt.y+ri.y*Math.cos(ang)*r+fw.y*Math.sin(ang)*r,pt.z+ri.z*Math.cos(ang)*r+fw.z*Math.sin(ang)*r);
+        uA.push(j/CI,t*4);
       }
     }
-    for(let i=0;i<LONG;i++){for(let j=0;j<CIRC;j++){const a=i*(CIRC+1)+j,b=a+1,c=a+(CIRC+1),d=c+1;idxArr.push(a,c,b,b,c,d);}}
+    for(let i=0;i<LO;i++)for(let j=0;j<CI;j++){const a=i*(CI+1)+j,b=a+1,c=a+(CI+1),d=c+1;iA.push(a,c,b,b,c,d);}
     const geo=new THREE.BufferGeometry();
-    geo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));
-    geo.setAttribute('uv',new THREE.Float32BufferAttribute(uvArr,2));
-    geo.setIndex(idxArr);geo.computeVertexNormals();return geo;
+    geo.setAttribute('position',new THREE.Float32BufferAttribute(vA,3));
+    geo.setAttribute('uv',new THREE.Float32BufferAttribute(uA,2));
+    geo.setIndex(iA);geo.computeVertexNormals();return geo;
   }
-  const trunkMesh=new THREE.Mesh(buildTrunk(),barkMat);trunkMesh.castShadow=true;trunkMesh.receiveShadow=true;G.add(trunkMesh);
+  const tM=new THREE.Mesh(buildTk(),bM);tM.castShadow=true;tM.receiveShadow=true;G.add(tM);
 
-  // Knots on trunk
-  for(let i=0;i<6;i++){
-    const t=0.1+rng()*0.7,pt=trunkCurve.getPoint(t),angle=rng()*Math.PI*2;
-    const baseR=S*THREE.MathUtils.lerp(115,24,t),kr=S*(14+rng()*16);
-    const geo=new THREE.SphereGeometry(kr,7,5);geo.scale(1,0.6,1);
-    const km=new THREE.Mesh(geo,new THREE.MeshLambertMaterial({map:barkTex,color:0x6a3e1a}));
-    km.position.set(pt.x+Math.cos(angle)*(baseR+kr*0.5),pt.y,pt.z+Math.sin(angle)*(baseR+kr*0.5));
-    km.castShadow=true;G.add(km);
+  // bark knots
+  for(let i=0;i<5;i++){
+    const t=0.1+rng()*0.7,pt=tC.getPoint(t),a=rng()*Math.PI*2,bR=S*THREE.MathUtils.lerp(112,22,t),kr=S*(12+rng()*14);
+    const kg=new THREE.SphereGeometry(kr,6,5);kg.scale(1,0.6,1);
+    const km=new THREE.Mesh(kg,new THREE.MeshLambertMaterial({map:bT,color:0x6a3e1a}));
+    km.position.set(pt.x+Math.cos(a)*(bR+kr*0.5),pt.y,pt.z+Math.sin(a)*(bR+kr*0.5));km.castShadow=true;G.add(km);
   }
 
-  // Buttress roots
+  // buttress roots
   for(let i=0;i<8;i++){
-    const angle=rng()*Math.PI*2,baseH=S*(150+rng()*200),spread=S*(100+rng()*110),thick=S*(9+rng()*10);
-    const wav=rng()*0.2;
-    const pts=[];for(let j=0;j<=14;j++){const t=j/14;const co=Math.pow(1-t,1.8)*spread;const w=Math.sin(t*Math.PI*2+i)*wav;pts.push(new THREE.Vector3(Math.cos(angle+w*0.1)*(S*78+co),t*baseH+Math.sin(t*Math.PI)*S*30,Math.sin(angle+w*0.1)*(S*78+co)));}
-    const bm=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),12,thick,7,false),new THREE.MeshLambertMaterial({map:barkTex,color:new THREE.Color(0.28+rng()*0.07,0.15+rng()*0.04,0.06+rng()*0.03)}));
+    const a=rng()*Math.PI*2,bH=S*(140+rng()*190),sp=S*(95+rng()*105),th=S*(8+rng()*10);
+    const pts=[];for(let j=0;j<=14;j++){const t=j/14,co=Math.pow(1-t,1.8)*sp,w=Math.sin(t*Math.PI*2+i)*(rng()*0.18);pts.push(new THREE.Vector3(Math.cos(a+w*0.1)*(S*75+co),t*bH+Math.sin(t*Math.PI)*S*28,Math.sin(a+w*0.1)*(S*75+co)));}
+    const bm=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),12,th,7,false),new THREE.MeshLambertMaterial({map:bT,color:new THREE.Color(0.27+rng()*0.07,0.14+rng()*0.04,0.05+rng()*0.03)}));
     bm.castShadow=true;G.add(bm);
   }
 
-  // ── BRANCHES ──
-  const branchEPs=[];
-  function addBranch(sx,sy,sz,ex,ey,ez,r,layer){
-    const m1x=THREE.MathUtils.lerp(sx,ex,0.33)+(rng()-0.5)*S*35;
-    const m1y=THREE.MathUtils.lerp(sy,ey,0.33)-S*25*layer+(rng()-0.5)*S*15;
-    const m1z=THREE.MathUtils.lerp(sz,ez,0.33)+(rng()-0.5)*S*35;
-    const m2x=THREE.MathUtils.lerp(sx,ex,0.67)+(rng()-0.5)*S*28;
-    const m2y=THREE.MathUtils.lerp(sy,ey,0.67)-S*40*layer+(rng()-0.5)*S*12;
-    const m2z=THREE.MathUtils.lerp(sz,ez,0.67)+(rng()-0.5)*S*28;
+  // branches
+  const bEPs=[];
+  function addBr(sx,sy,sz,ex,ey,ez,r,layer){
+    const m1x=THREE.MathUtils.lerp(sx,ex,.33)+(rng()-.5)*S*32,m1y=THREE.MathUtils.lerp(sy,ey,.33)-S*22*layer+(rng()-.5)*S*14,m1z=THREE.MathUtils.lerp(sz,ez,.33)+(rng()-.5)*S*32;
+    const m2x=THREE.MathUtils.lerp(sx,ex,.67)+(rng()-.5)*S*26,m2y=THREE.MathUtils.lerp(sy,ey,.67)-S*36*layer+(rng()-.5)*S*10,m2z=THREE.MathUtils.lerp(sz,ez,.67)+(rng()-.5)*S*26;
     const curve=new THREE.CatmullRomCurve3([new THREE.Vector3(sx,sy,sz),new THREE.Vector3(m1x,m1y,m1z),new THREE.Vector3(m2x,m2y,m2z),new THREE.Vector3(ex,ey,ez)]);
     const br=layer===0?0.82:layer===1?0.72:0.60;
-    const mesh=new THREE.Mesh(new THREE.TubeGeometry(curve,layer<2?9:6,r,6,false),new THREE.MeshLambertMaterial({map:barkTex,color:new THREE.Color(br,br*0.82,br*0.65)}));
-    mesh.castShadow=true;G.add(mesh);
-    branchEPs.push({pos:new THREE.Vector3(ex,ey,ez),layer});
+    const mesh=new THREE.Mesh(new THREE.TubeGeometry(curve,layer<2?9:6,r,6,false),new THREE.MeshLambertMaterial({map:bT,color:new THREE.Color(br,br*0.82,br*0.65)}));
+    mesh.castShadow=true;G.add(mesh);bEPs.push({pos:new THREE.Vector3(ex,ey,ez),layer});
+  }
+  const tp=tC.getPoint(1),mp=tC.getPoint(0.55);
+  addBr(tp.x,tp.y,tp.z,tp.x-S*265,tp.y+S*172,tp.z-S*132,S*21,0);
+  addBr(tp.x,tp.y,tp.z,tp.x+S*275,tp.y+S*190,tp.z+S*112,S*21,0);
+  addBr(tp.x,tp.y,tp.z,tp.x+S*95,tp.y+S*210,tp.z-S*265,S*19,0);
+  addBr(tp.x,tp.y,tp.z,tp.x-S*130,tp.y+S*202,tp.z+S*260,S*18,0);
+  addBr(tp.x,tp.y,tp.z,tp.x+S*30,tp.y+S*238,tp.z+S*35,S*17,0);
+  addBr(mp.x,mp.y,mp.z,mp.x-S*210,mp.y+S*190,mp.z+S*155,S*15,0);
+  addBr(mp.x,mp.y,mp.z,mp.x+S*225,mp.y+S*172,mp.z-S*115,S*14,0);
+
+  const pS=bEPs.slice();
+  pS.forEach(ep=>{const n=2+Math.floor(rng()*2);for(let k=0;k<n;k++){const sp=S*(148+rng()*138),ax=rng()*Math.PI*2;addBr(ep.pos.x,ep.pos.y,ep.pos.z,ep.pos.x+Math.cos(ax)*sp,ep.pos.y+S*(102+rng()*115),ep.pos.z+Math.sin(ax)*sp,S*(8+rng()*5),1);}});
+  bEPs.filter(e=>e.layer===1).forEach(ep=>{if(rng()<0.75){const sp=S*(92+rng()*105),ax=rng()*Math.PI*2;addBr(ep.pos.x,ep.pos.y,ep.pos.z,ep.pos.x+Math.cos(ax)*sp,ep.pos.y+S*(85+rng()*88),ep.pos.z+Math.sin(ax)*sp,S*(4.5+rng()*3),2);}});
+
+  // leaves
+  function lGeo(lw,ll){const sh=new THREE.Shape(),n=12;sh.moveTo(-ll*.5,0);for(let i=1;i<=n;i++){const t=i/n,x=(t-.5)*ll,w=Math.pow(Math.sin(t*Math.PI),.75)*lw*.5,cm=Math.sin(t*Math.PI)*.07*ll;sh.lineTo(x,w+cm);}for(let i=n-1;i>=0;i--){const t=i/n,x=(t-.5)*ll,w=Math.pow(Math.sin(t*Math.PI),.75)*lw*.5,cm=Math.sin(t*Math.PI)*.07*ll;sh.lineTo(x,-w+cm);}sh.closePath();return new THREE.ShapeGeometry(sh,3);}
+  function spL(cx,cy,cz,rad,cnt){for(let i=0;i<cnt;i++){const lw=S*(22+rng()*18),ll=S*(45+rng()*49),lf=new THREE.Mesh(lGeo(lw,ll),lMs[i%lMs.length]);const th=rng()*Math.PI*2,ph=(rng()-.5)*Math.PI*.75,r=rng()*rad;lf.position.set(cx+r*Math.cos(th)*Math.cos(ph),cy+r*Math.abs(Math.sin(ph))*.5+rng()*S*20,cz+r*Math.sin(th)*Math.cos(ph));lf.rotation.set((rng()-.5)*1.3+.15,rng()*Math.PI*2,(rng()-.5)*1.2);lf.castShadow=true;G.add(lf);}}
+  bEPs.forEach(ep=>{if(ep.layer===2)spL(ep.pos.x,ep.pos.y,ep.pos.z,S*112,15);else if(ep.layer===1)spL(ep.pos.x,ep.pos.y,ep.pos.z,S*68,6);else spL(ep.pos.x,ep.pos.y,ep.pos.z,S*40,3);});
+  for(let i=0;i<16;i++){const ep=bEPs[Math.floor(rng()*bEPs.length)];spL(ep.pos.x+(rng()-.5)*S*148,ep.pos.y+rng()*S*110,ep.pos.z+(rng()-.5)*S*148,S*132,11);}
+
+  // hanging roots + figs
+  const figG=new THREE.Group();G.add(figG);figG.visible=false;
+
+  for(let i=0;i<72;i++){
+    const t=0.08+rng()*0.85,ang=rng()*Math.PI*2;
+    const pt=tC.getPoint(t),tg=tC.getTangent(t).normalize();
+    const ri=new THREE.Vector3().crossVectors(new THREE.Vector3(0,1,0),tg).normalize();if(ri.lengthSq()<0.001)ri.set(1,0,0);
+    const fw=new THREE.Vector3().crossVectors(tg,ri).normalize();
+    const bR=S*THREE.MathUtils.lerp(112,22,t)*1.04;
+    const ox=pt.x+ri.x*Math.cos(ang)*bR+fw.x*Math.sin(ang)*bR,oy=pt.y,oz=pt.z+ri.z*Math.cos(ang)*bR+fw.z*Math.sin(ang)*bR;
+    const rGnd=rng()>0.36,mxL=pt.y,len=rGnd?mxL:mxL*(0.26+rng()*0.54);
+    const swX=(rng()-.5)*S*65,swZ=(rng()-.5)*S*65,tw=(rng()-.5)*S*20;
+    const nSg=20,pts=[];for(let j=0;j<=nSg;j++){const tR=j/nSg,bow=Math.sin(tR*Math.PI)*.7,d=tR*tR*.24,wb=Math.sin(tR*Math.PI*1.8+i)*S*5;pts.push(new THREE.Vector3(ox+(bow+d)*swX+wb*.35,oy-tR*len,oz+(bow+d)*swZ+wb*.28+tw*tR));}
+    const crv=new THREE.CatmullRomCurve3(pts),rTh=rGnd?(S*(1.9+rng()*2.1)):(S*(1.3+rng()*1.3));
+    const rm=new THREE.Mesh(new THREE.TubeGeometry(crv,20,rTh,5,false),new THREE.MeshLambertMaterial({map:rT,color:new THREE.Color(0.24+rng()*0.08,0.13+rng()*0.05,0.04+rng()*0.03)}));
+    rm.castShadow=true;G.add(rm);
+    const nFP=Math.floor(2+len/S*0.0065);
+    for(let j=0;j<nFP;j++){if(rng()<0.77){const fp=crv.getPoint(0.06+rng()*0.88),fa=rng()*Math.PI*2,fo=S*(3.5+rng()*3);sFig(figG,fp.x+Math.cos(fa)*fo,fp.y,fp.z+Math.sin(fa)*fo,2+Math.floor(rng()*3));}}
+  }
+  // cauliflory on trunk
+  for(let i=0;i<9;i++){
+    const t=0.05+rng()*0.88,a=rng()*Math.PI*2,pt=tC.getPoint(t),tg=tC.getTangent(t).normalize();
+    const ri=new THREE.Vector3().crossVectors(new THREE.Vector3(0,1,0),tg).normalize();if(ri.lengthSq()<0.001)ri.set(1,0,0);
+    const fw=new THREE.Vector3().crossVectors(tg,ri).normalize();
+    const bR=S*THREE.MathUtils.lerp(112,22,t)*1.07;
+    sFig(figG,pt.x+ri.x*Math.cos(a)*bR+fw.x*Math.sin(a)*bR,pt.y,pt.z+ri.z*Math.cos(a)*bR+fw.z*Math.sin(a)*bR,3+Math.floor(rng()*3));
   }
 
-  const tp=trunkCurve.getPoint(1);
-  addBranch(tp.x,tp.y,tp.z,tp.x-S*280,tp.y+S*180,tp.z-S*140,S*22,0);
-  addBranch(tp.x,tp.y,tp.z,tp.x+S*290,tp.y+S*200,tp.z+S*120,S*22,0);
-  addBranch(tp.x,tp.y,tp.z,tp.x+S*100,tp.y+S*220,tp.z-S*280,S*20,0);
-  addBranch(tp.x,tp.y,tp.z,tp.x-S*140,tp.y+S*210,tp.z+S*275,S*19,0);
-  addBranch(tp.x,tp.y,tp.z,tp.x+S*35,tp.y+S*250,tp.z+S*40,S*18,0);
-
-  const mp=trunkCurve.getPoint(0.55);
-  addBranch(mp.x,mp.y,mp.z,mp.x-S*225,mp.y+S*200,mp.z+S*165,S*16,0);
-  addBranch(mp.x,mp.y,mp.z,mp.x+S*240,mp.y+S*180,mp.z-S*125,S*15,0);
-
-  const bepSnap=branchEPs.slice();
-  bepSnap.forEach(ep=>{
-    const n=2+Math.floor(rng()*2);
-    for(let k=0;k<n;k++){
-      const sp=S*(160+rng()*145),ax=rng()*Math.PI*2;
-      addBranch(ep.pos.x,ep.pos.y,ep.pos.z,ep.pos.x+Math.cos(ax)*sp,ep.pos.y+S*(110+rng()*120),ep.pos.z+Math.sin(ax)*sp,S*(9+rng()*5),1);
-    }
-  });
-  branchEPs.filter(e=>e.layer===1).forEach(ep=>{
-    if(rng()<0.75){
-      const sp=S*(100+rng()*110),ax=rng()*Math.PI*2;
-      addBranch(ep.pos.x,ep.pos.y,ep.pos.z,ep.pos.x+Math.cos(ax)*sp,ep.pos.y+S*(90+rng()*90),ep.pos.z+Math.sin(ax)*sp,S*(5+rng()*3),2);
-    }
-  });
-
-  // ── LEAVES ──
-  function leafGeo(lw,ll){
-    const shape=new THREE.Shape();const n=12;shape.moveTo(-ll*0.5,0);
-    for(let i=1;i<=n;i++){const t=i/n,x=(t-0.5)*ll,w=Math.pow(Math.sin(t*Math.PI),0.75)*lw*0.5,cam=Math.sin(t*Math.PI)*0.07*ll;shape.lineTo(x,w+cam);}
-    for(let i=n-1;i>=0;i--){const t=i/n,x=(t-0.5)*ll,w=Math.pow(Math.sin(t*Math.PI),0.75)*lw*0.5,cam=Math.sin(t*Math.PI)*0.07*ll;shape.lineTo(x,-w+cam);}
-    shape.closePath();return new THREE.ShapeGeometry(shape,3);
-  }
-  function spawnLeaves(cx,cy,cz,radius,count){
-    for(let i=0;i<count;i++){
-      const lw=S*(23+rng()*19),ll=S*(47+rng()*51);
-      const leaf=new THREE.Mesh(leafGeo(lw,ll),leafMats[i%leafMats.length]);
-      const theta=rng()*Math.PI*2,phi=(rng()-0.5)*Math.PI*0.75,r=rng()*radius;
-      leaf.position.set(cx+r*Math.cos(theta)*Math.cos(phi),cy+r*Math.abs(Math.sin(phi))*0.5+rng()*S*22,cz+r*Math.sin(theta)*Math.cos(phi));
-      leaf.rotation.set((rng()-0.5)*1.3+0.15,rng()*Math.PI*2,(rng()-0.5)*1.2);
-      leaf.castShadow=true;G.add(leaf);
-    }
-  }
-  branchEPs.forEach(ep=>{
-    if(ep.layer===2)spawnLeaves(ep.pos.x,ep.pos.y,ep.pos.z,S*120,16);
-    else if(ep.layer===1)spawnLeaves(ep.pos.x,ep.pos.y,ep.pos.z,S*72,7);
-    else spawnLeaves(ep.pos.x,ep.pos.y,ep.pos.z,S*44,3);
-  });
-  for(let i=0;i<18;i++){
-    const ep=branchEPs[Math.floor(rng()*branchEPs.length)];
-    spawnLeaves(ep.pos.x+(rng()-0.5)*S*160,ep.pos.y+rng()*S*120,ep.pos.z+(rng()-0.5)*S*160,S*140,12);
-  }
-
-  // ── HANGING ROOTS + FIGS ──
-  const figGroup=new THREE.Group();G.add(figGroup);figGroup.visible=false;
-
-  for(let i=0;i<75;i++){
-    const t=0.08+rng()*0.86,angle=rng()*Math.PI*2;
-    const pt=trunkCurve.getPoint(t),tang=trunkCurve.getTangent(t).normalize();
-    const right2=new THREE.Vector3().crossVectors(new THREE.Vector3(0,1,0),tang).normalize();
-    if(right2.lengthSq()<0.001)right2.set(1,0,0);
-    const fwd2=new THREE.Vector3().crossVectors(tang,right2).normalize();
-    const baseR=S*THREE.MathUtils.lerp(115,24,t)*1.05;
-    const ox=pt.x+right2.x*Math.cos(angle)*baseR+fwd2.x*Math.sin(angle)*baseR;
-    const oy=pt.y;
-    const oz=pt.z+right2.z*Math.cos(angle)*baseR+fwd2.z*Math.sin(angle)*baseR;
-
-    const reachGnd=rng()>0.38,maxLen=pt.y,len=reachGnd?maxLen:maxLen*(0.28+rng()*0.55);
-    const swX=(rng()-0.5)*S*70,swZ=(rng()-0.5)*S*70,twist=(rng()-0.5)*S*22;
-    const nSeg=20,pts=[];
-    for(let j=0;j<=nSeg;j++){const tR=j/nSeg,bow=Math.sin(tR*Math.PI)*0.7,d=tR*tR*0.25,wob=Math.sin(tR*Math.PI*1.8+i)*S*6;pts.push(new THREE.Vector3(ox+(bow+d)*swX+wob*0.4,oy-tR*len,oz+(bow+d)*swZ+wob*0.3+twist*tR));}
-    const curve=new THREE.CatmullRomCurve3(pts);
-    const rThick=reachGnd?(S*(2.0+rng()*2.2)):(S*(1.4+rng()*1.4));
-    G.add(Object.assign(new THREE.Mesh(new THREE.TubeGeometry(curve,20,rThick,5,false),new THREE.MeshLambertMaterial({map:rootTex,color:new THREE.Color(0.25+rng()*0.08,0.14+rng()*0.05,0.04+rng()*0.03)})),{castShadow:true}));
-
-    // Figs along this root
-    const nFP=Math.floor(2+len/S*0.007);
-    for(let j=0;j<nFP;j++){
-      if(rng()<0.76){
-        const fp=curve.getPoint(0.06+rng()*0.88);
-        const fa=rng()*Math.PI*2,fo=S*(4+rng()*3);
-        spawnFigs(figGroup,fp.x+Math.cos(fa)*fo,fp.y,fp.z+Math.sin(fa)*fo,2+Math.floor(rng()*3));
-      }
-    }
-  }
-  // Cauliflory on trunk
-  for(let i=0;i<10;i++){
-    const t=0.05+rng()*0.88,a=rng()*Math.PI*2,pt=trunkCurve.getPoint(t);
-    const tang=trunkCurve.getTangent(t).normalize();
-    const right3=new THREE.Vector3().crossVectors(new THREE.Vector3(0,1,0),tang).normalize();
-    if(right3.lengthSq()<0.001)right3.set(1,0,0);
-    const fwd3=new THREE.Vector3().crossVectors(tang,right3).normalize();
-    const bR=S*THREE.MathUtils.lerp(115,24,t)*1.08;
-    spawnFigs(figGroup,pt.x+right3.x*Math.cos(a)*bR+fwd3.x*Math.sin(a)*bR,pt.y,pt.z+right3.z*Math.cos(a)*bR+fwd3.z*Math.sin(a)*bR,3+Math.floor(rng()*4));
-  }
-
-  G.userData.figGroup=figGroup;
-  G.userData.leafMats=leafMats;
+  G.userData.figGroup=figG;
+  G.userData.leafMats=lMs;
   return G;
 }
 
-// ══════════════════════════════════════════════════
-// DETECT CAPABILITIES
-// ══════════════════════════════════════════════════
-let hasWebXR=false;
-async function checkWebXR(){
-  if(!navigator.xr)return false;
-  try{return await navigator.xr.isSessionSupported('immersive-ar');}catch(e){return false;}
+// ─── GLOBAL STATE ──────────────────────────────
+let _renderer=null,_scene=null,_camera=null;
+let _treeProto=null; // built once, cloned per mode
+let _bT,_gT,_fT,_rT;
+let _scale=1,_rotY=0,_fruit=false;
+let _raf=null,_stream=null;
+
+// ─── INIT RENDERER ─────────────────────────────
+// transparent=true → alpha canvas for camera AR overlay
+function initRenderer(transparent){
+  if(_renderer){_renderer.dispose();_renderer=null;}
+  const cv=$('three-canvas');
+  _renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:transparent,premultipliedAlpha:false});
+  _renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  _renderer.setSize(innerWidth,innerHeight);
+  _renderer.shadowMap.enabled=true;
+  _renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  _renderer.toneMapping=THREE.ACESFilmicToneMapping;
+  _renderer.toneMappingExposure=1.1;
+  if(transparent){_renderer.setClearColor(0x000000,0);}
+  else{_renderer.setClearColor(0x05100a,1);}
+
+  _scene=new THREE.Scene();
+  if(!transparent){_scene.background=new THREE.Color(0x05100a);_scene.fog=new THREE.Fog(0x05100a,22,68);}
+
+  // *** NO Object.assign on lights — set position separately ***
+  _scene.add(new THREE.AmbientLight(0x3a5a3a,1.0));
+
+  const sun=new THREE.DirectionalLight(0xfff5d8,2.5);
+  sun.position.set(7,16,8);
+  sun.castShadow=true;
+  sun.shadow.mapSize.set(512,512);
+  sun.shadow.bias=-0.001;
+  _scene.add(sun);
+
+  const fill=new THREE.DirectionalLight(0x507a60,0.7);
+  fill.position.set(-6,4,-5);
+  _scene.add(fill);
+
+  _scene.add(new THREE.HemisphereLight(0x448844,0x2a1a0a,0.5));
+
+  _camera=new THREE.PerspectiveCamera(42,innerWidth/innerHeight,0.01,200);
+  window.addEventListener('resize',onResize);
 }
 
-// ══════════════════════════════════════════════════
-// SHARED TREE INSTANCE
-// ══════════════════════════════════════════════════
-let treeGroup=null;
-let barkTex,gndTex,figTex,rootTex;
-let treeScale=1.0;
-let treeRotation=0;
-let fruitingMode=false;
-
-function preloadAssets(){
-  setStatus('Membuat tekstur...');
-  barkTex=makeBarkTex();gndTex=makeGndTex();figTex=makeFigTex();rootTex=makeRootTex();
-  setStatus('Membangun model pohon...');
-  treeGroup=buildTree(barkTex,gndTex,figTex,rootTex);
-  setStatus('Siap!');
+function onResize(){
+  if(!_renderer||!_camera)return;
+  _renderer.setSize(innerWidth,innerHeight);
+  _camera.aspect=innerWidth/innerHeight;
+  _camera.updateProjectionMatrix();
 }
 
-function setStatus(s){document.getElementById('load-status').textContent=s;}
+// ─── BUILD TREE ONCE ───────────────────────────
+function ensureTree(){
+  if(_treeProto)return;
+  setLdMsg('Membuat tekstur...');
+  _bT=mkBark();_gT=mkGnd();_fT=mkFig();_rT=mkRoot();
+  setLdMsg('Membangun model pohon...');
+  _treeProto=buildTree(_bT,_gT,_fT,_rT);
+  setLdMsg('Siap!');
+}
 
-// ══════════════════════════════════════════════════
-// MODE: WEBXR (Android Chrome — Surface AR)
-// ══════════════════════════════════════════════════
-async function startWebXR(){
-  const canvasEl=document.getElementById('ar-canvas');
-  canvasEl.style.display='block';
-  showHUD('Surface AR — Gerakkan kamera ke lantai');
-
-  const renderer=new THREE.WebGLRenderer({canvas:canvasEl,antialias:true,alpha:true});
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
-  renderer.xr.enabled=true;
-  renderer.setSize(window.innerWidth,window.innerHeight);
-
-  const scene=new THREE.Scene();
-  scene.add(new THREE.AmbientLight(0x888888,1.0));
-  const dLight=new THREE.DirectionalLight(0xffffff,1.8);dLight.position.set(5,10,5);scene.add(dLight);
-  const hLight=new THREE.HemisphereLight(0x448844,0x2a1a0a,0.6);scene.add(hLight);
-
-  const camera=new THREE.PerspectiveCamera(70,window.innerWidth/window.innerHeight,0.01,200);
-
-  // Clone tree for this session
-  const tree=treeGroup.clone(true);
-  tree.visible=false;
-  scene.add(tree);
-
-  let placed=false;
-  let hitTestSource=null;
-  let hitTestSourceReq=false;
-  const reticleEl=document.getElementById('reticle-svg');
-  const reticle=new THREE.Mesh(new THREE.RingGeometry(0.06,0.08,32),new THREE.MeshBasicMaterial({color:0x4caf6e,side:THREE.DoubleSide}));
-  reticle.rotation.x=-Math.PI/2;reticle.visible=false;scene.add(reticle);
-
-  // XR controller for tap-to-place
-  const controller=renderer.xr.getController(0);
-  controller.addEventListener('select',()=>{
-    if(reticle.visible&&!placed){
-      tree.position.copy(reticle.position);
-      tree.visible=true;placed=true;
-      reticleEl.style.display='none';reticle.visible=false;
-      document.getElementById('btn-place').style.display='none';
-      setHint('Pohon ditempatkan! Gunakan tombol untuk mengubah tampilan.');
-    }
-  });
-  scene.add(controller);
-
-  const session=await navigator.xr.requestSession('immersive-ar',{requiredFeatures:['hit-test'],optionalFeatures:['dom-overlay'],domOverlay:{root:document.getElementById('hud')}});
-  renderer.xr.setReferenceSpaceType('local');
-  await renderer.xr.setSession(session);
-
-  document.getElementById('btn-place').style.display='flex';
-  document.getElementById('btn-place').onclick=()=>{
-    if(reticle.visible&&!placed){
-      tree.position.copy(reticle.position);
-      tree.visible=true;placed=true;
-      reticleEl.style.display='none';reticle.visible=false;
-      document.getElementById('btn-place').style.display='none';
-      setHint('Pohon ditempatkan! Pinch/tombol untuk skala.');
-    }
+// ─── CONTROLS ──────────────────────────────────
+function bindControls(getTree){
+  $('c-sm').onclick=()=>{_scale=Math.max(0.15,_scale*0.78);const t=getTree();if(t)t.scale.setScalar(_scale);toast('Skala: '+Math.round(_scale*100)+'%');};
+  $('c-lg').onclick=()=>{_scale=Math.min(4.0,_scale*1.28);const t=getTree();if(t)t.scale.setScalar(_scale);toast('Skala: '+Math.round(_scale*100)+'%');};
+  $('c-rt').onclick=()=>{_rotY+=Math.PI/4;const t=getTree();if(t)t.rotation.y=_rotY;};
+  $('c-fr').onclick=function(){
+    _fruit=!_fruit;this.classList.toggle('on',_fruit);
+    const t=getTree();if(!t)return;
+    const fg=t.userData.figGroup;if(fg)fg.visible=_fruit;
+    const lm=t.userData.leafMats;if(lm){const h=_fruit?.27:.265,s=_fruit?.58:.55,l=_fruit?.15:.18;lm.forEach((m,i)=>m.color.setHSL(h+i*.013,s,l+(i%3)*.03));}
+    toast(_fruit?'Mode Berbuah Aktif':'Mode Normal');
   };
+}
 
-  // Controls
-  setupControls(tree,()=>placed);
+// ─── CLEANUP ───────────────────────────────────
+function cleanup(){
+  window.removeEventListener('resize',onResize);
+  if(_raf){cancelAnimationFrame(_raf);_raf=null;}
+  if(_renderer){_renderer.setAnimationLoop(null);}
+  if(_stream){_stream.getTracks().forEach(t=>t.stop());_stream=null;}
+  const v=$('cam-video');v.srcObject=null;v.style.display='none';
+  $('three-canvas').style.display='none';
+  $('reticle').style.display='none';
+  $('btn-place').style.display='none';
+  $('c-fr').classList.remove('on');
+  _fruit=false;_scale=1;_rotY=0;
+  hide('hud');
+  // Dispose renderer
+  if(_renderer){try{_renderer.dispose();}catch(e){}}_renderer=null;
+  _scene=null;_camera=null;
+}
 
-  session.addEventListener('end',()=>{
-    canvasEl.style.display='none';
-    document.getElementById('hud').style.display='none';
-    document.getElementById('mode-screen').style.display='flex';
+function showError(title,msg){
+  cleanup();
+  $('err-title').textContent=title;
+  $('err-msg').textContent=msg;
+  showFlex('scr-err');
+}
+
+$('btn-exit').onclick=()=>{cleanup();showFlex('scr-home');};
+$('err-back').onclick=()=>{hide('scr-err');showFlex('scr-home');};
+$('err-3d').onclick=()=>{hide('scr-err');launchMode('3d');};
+
+// ─── ANIM HELPERS ──────────────────────────────
+function animateTree(tree,time){
+  const lv=tree.userData._leaves;
+  const li=tree.userData._leafInit;
+  const rv=tree.userData._roots;
+  if(lv&&li){for(let i=0;i<lv.length;i+=4){const ir=li[i]||{rx:0,rz:0};lv[i].rotation.x=ir.rx+Math.sin(time*.62+i*.18)*.034;lv[i].rotation.z=ir.rz+Math.cos(time*.47+i*.23)*.026;}}
+  if(rv){for(let i=0;i<rv.length;i++)rv[i].rotation.z=Math.sin(time*(.22+i*.008)+i*.618)*.013;}
+}
+
+function cacheTreeAnimData(tree){
+  // Cache leaf + root references so we don't traverse every frame
+  const leaves=[],roots=[];
+  tree.traverse(o=>{
+    if(!o.isMesh)return;
+    if(o.material&&o.material.side===THREE.DoubleSide)leaves.push(o);
+    else if(o.material&&o!==tree)roots.push(o);
   });
+  tree.userData._leaves=leaves;
+  tree.userData._leafInit=leaves.map(l=>({rx:l.rotation.x,rz:l.rotation.z}));
+  tree.userData._roots=roots;
+}
 
-  renderer.setAnimationLoop((timestamp,frame)=>{
+// ═══════════════════════════════════════════════
+// MODE A — AR KAMERA (getUserMedia)
+// Works on ALL browsers that support camera access
+// ═══════════════════════════════════════════════
+async function startCamAR(){
+  // 1. Request camera first — fail fast if denied
+  let stream;
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},
+      audio:false
+    });
+  }catch(err){
+    const isPermission=err.name==='NotAllowedError'||err.name==='PermissionDeniedError';
+    showError(
+      isPermission?'Izin Kamera Ditolak':'Kamera Tidak Tersedia',
+      isPermission
+        ?'Izinkan akses kamera di popup browser, lalu refresh halaman. Pastikan URL menggunakan HTTPS.'
+        :'Kamera tidak ditemukan atau sedang digunakan aplikasi lain. Error: '+err.message
+    );
+    return;
+  }
+
+  // 2. Show video
+  _stream=stream;
+  const vid=$('cam-video');
+  vid.srcObject=stream;
+  vid.style.display='block';
+  await new Promise(r=>{vid.onloadedmetadata=()=>{vid.play();r();};});
+
+  // 3. Init Three.js transparent overlay
+  initRenderer(true);
+  $('three-canvas').style.display='block';
+
+  // 4. Clone and place tree
+  ensureTree();
+  const tree=_treeProto.clone(true);
+  tree.userData.figGroup=null; // will re-find below
+  tree.traverse(o=>{if(o.isGroup&&o!==tree)tree.userData.figGroup=o;});
+  tree.userData.leafMats=_treeProto.userData.leafMats;
+  tree.scale.setScalar(_scale);
+  tree.visible=false;
+  _scene.add(tree);
+  cacheTreeAnimData(tree);
+
+  // Camera positioned to show tree nicely in overlay
+  _camera.position.set(0,4,18);_camera.lookAt(0,5,0);
+
+  // 5. HUD
+  showFlex('hud');
+  $('hud-mode').textContent='AR Kamera';
+  $('btn-place').style.display='flex';
+  $('reticle').style.display='block';
+  setHint('Pohon siap — Tap layar atau tekan 🌱 untuk menempatkan');
+
+  let placed=false,autoSpin=true;
+  let tRotY=0,cRotY=0,time=0;
+
+  function doPlace(){
+    if(placed)return;
+    placed=true;autoSpin=false;
+    tree.visible=true;
+    $('btn-place').style.display='none';
+    $('reticle').style.display='none';
+    setHint('Gunakan tombol untuk skala & rotasi');
+    toast('Pohon ditempatkan! 🌳');
+  }
+  $('btn-place').onclick=doPlace;
+  $('three-canvas').addEventListener('click',doPlace,{once:true});
+
+  bindControls(()=>tree);
+
+  function loop(){
+    _raf=requestAnimationFrame(loop);
+    time+=0.01;
+    if(autoSpin){tRotY+=0.008;cRotY+=(tRotY-cRotY)*.05;tree.rotation.y=cRotY;}
+    animateTree(tree,time);
+    _renderer.render(_scene,_camera);
+  }
+  loop();
+}
+
+// ═══════════════════════════════════════════════
+// MODE B — WEBXR SURFACE AR
+// Only for Chrome Android + ARCore devices
+// ═══════════════════════════════════════════════
+async function startWebXR(){
+  // Pre-check
+  if(!navigator.xr){showError('WebXR Tidak Tersedia','Browser/perangkat ini tidak mendukung WebXR. Gunakan AR Kamera.');return;}
+
+  initRenderer(true);
+  $('three-canvas').style.display='block';
+  showFlex('hud');
+  $('hud-mode').textContent='Surface AR';
+  setHint('Memulai sesi AR...');
+
+  _renderer.xr.enabled=true;
+
+  ensureTree();
+  const tree=_treeProto.clone(true);
+  tree.userData.figGroup=null;
+  tree.traverse(o=>{if(o.isGroup&&o!==tree)tree.userData.figGroup=o;});
+  tree.userData.leafMats=_treeProto.userData.leafMats;
+  tree.scale.setScalar(_scale);
+  tree.visible=false;
+  _scene.add(tree);
+  cacheTreeAnimData(tree);
+
+  // 3D reticle in scene
+  const retM=new THREE.Mesh(new THREE.RingGeometry(0.06,0.09,28),new THREE.MeshBasicMaterial({color:0x4caf6e,side:THREE.DoubleSide}));
+  retM.rotation.x=-Math.PI/2;retM.visible=false;_scene.add(retM);
+
+  let hitSrc=null,hitSrcReq=false,placed=false;
+  $('btn-place').style.display='flex';
+
+  function doPlace(){
+    if(!retM.visible||placed)return;
+    placed=true;tree.position.copy(retM.position);tree.visible=true;
+    retM.visible=false;$('btn-place').style.display='none';
+    setHint('Pohon ditempatkan!');toast('Pohon ditempatkan! 🌳');
+  }
+  $('btn-place').onclick=doPlace;
+  bindControls(()=>tree);
+
+  let session;
+  try{
+    session=await navigator.xr.requestSession('immersive-ar',{
+      requiredFeatures:['hit-test'],
+      optionalFeatures:['dom-overlay'],
+      domOverlay:{root:$('hud')}
+    });
+  }catch(e){
+    cleanup();
+    showError('WebXR Gagal Dimulai',
+      'Perangkat ini tidak mendukung hit-test AR. '+
+      'Pastikan ARCore terinstall dan aktif (cek di Play Store). '+
+      'Error: '+e.message
+    );
+    return;
+  }
+
+  _renderer.xr.setReferenceSpaceType('local');
+  await _renderer.xr.setSession(session);
+
+  const ctrl=_renderer.xr.getController(0);
+  ctrl.addEventListener('select',doPlace);
+  _scene.add(ctrl);
+
+  let time=0;
+  _renderer.setAnimationLoop((ts,frame)=>{
+    time+=0.01;
     if(frame){
-      const refSpace=renderer.xr.getReferenceSpace();
-      if(!hitTestSourceReq){
-        session.requestReferenceSpace('viewer').then(vs=>{
-          session.requestHitTestSource({space:vs}).then(src=>{hitTestSource=src;});
-        });
-        hitTestSourceReq=true;
+      const ref=_renderer.xr.getReferenceSpace();
+      if(!hitSrcReq){
+        session.requestReferenceSpace('viewer').then(vs=>session.requestHitTestSource({space:vs}).then(s=>{hitSrc=s;}));
+        hitSrcReq=true;
       }
-      if(hitTestSource&&!placed){
-        const hits=frame.getHitTestResults(hitTestSource);
-        if(hits.length>0){
-          const pose=hits[0].getPose(refSpace);
-          reticle.visible=true;
-          reticle.matrix.fromArray(pose.transform.matrix);
-          reticle.position.setFromMatrixPosition(reticle.matrix);
-          reticleEl.style.display='block';
-          setHint('Permukaan terdeteksi — Tap layar atau tekan 🌱 untuk menaruh pohon');
+      if(hitSrc&&!placed){
+        const hits=frame.getHitTestResults(hitSrc);
+        if(hits.length){
+          const pose=hits[0].getPose(ref);
+          retM.visible=true;
+          retM.matrix.fromArray(pose.transform.matrix);
+          retM.position.setFromMatrixPosition(retM.matrix);
+          setHint('Permukaan terdeteksi — Tap atau tekan 🌱');
         }else{
-          reticle.visible=false;
-          reticleEl.style.display='none';
-          setHint('Gerakkan kamera perlahan ke arah lantai...');
+          retM.visible=false;
+          setHint('Gerakkan kamera ke lantai perlahan...');
         }
       }
     }
-    renderer.render(scene,camera);
+    animateTree(tree,time);
+    _renderer.render(_scene,_camera);
+  });
+
+  session.addEventListener('end',()=>{
+    _renderer.setAnimationLoop(null);
+    hide('hud');
+    showFlex('scr-home');
   });
 }
 
-// ══════════════════════════════════════════════════
-// MODE: AR.JS MARKER (iOS + Android fallback)
-// ══════════════════════════════════════════════════
-function startMarkerAR(){
-  // Show marker guide first
-  document.getElementById('marker-guide').style.display='flex';
-}
+// ═══════════════════════════════════════════════
+// MODE C — 3D VIEWER
+// ═══════════════════════════════════════════════
+function start3D(){
+  initRenderer(false);
+  $('three-canvas').style.display='block';
+  showFlex('hud');
+  $('hud-mode').textContent='3D Viewer';
+  $('btn-place').style.display='none';
+  setHint('Seret untuk memutar · Scroll / Pinch untuk zoom');
 
-function launchMarkerAR(){
-  document.getElementById('marker-guide').style.display='none';
-  document.getElementById('arjs-container').style.display='block';
-  showHUD('Marker AR — Arahkan ke marker Hiro');
+  _camera.position.set(0,5.5,22);_camera.lookAt(0.2,6,0);
 
-  const renderer=new THREE.WebGLRenderer({
-    canvas:document.getElementById('arjs-canvas'),
-    antialias:true,alpha:true
-  });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.5));
-  renderer.setSize(window.innerWidth,window.innerHeight);
-  renderer.autoClear=false;
+  ensureTree();
+  const tree=_treeProto.clone(true);
+  tree.userData.figGroup=null;
+  tree.traverse(o=>{if(o.isGroup&&o!==tree)tree.userData.figGroup=o;});
+  tree.userData.leafMats=_treeProto.userData.leafMats;
+  _scene.add(tree);
+  cacheTreeAnimData(tree);
 
-  const scene=new THREE.Scene();
-  const camera=new THREE.Camera();
-  scene.add(camera);
+  bindControls(()=>tree);
 
-  scene.add(new THREE.AmbientLight(0x888888,1.2));
-  const dLight=new THREE.DirectionalLight(0xffffff,1.6);dLight.position.set(5,10,5);scene.add(dLight);
+  let rotY=0,rotX=0,tRY=0,tRX=0,zoom=22,tZ=22;
+  let isDrag=false,prev={x:0,y:0},autoR=true,time=0;
+  const cv=$('three-canvas');
 
-  // AR.js toolkit
-  const arToolkitSource=new THREEx.ArToolkitSource({sourceType:'webcam'});
-  arToolkitSource.init(()=>{
-    arToolkitSource.domElement.style.position='fixed';
-    arToolkitSource.domElement.style.top='0';
-    arToolkitSource.domElement.style.left='0';
-    arToolkitSource.domElement.style.zIndex='-1';
-    document.body.appendChild(arToolkitSource.domElement);
-    onResize();
-    setHint('Arahkan kamera ke marker Hiro');
-  });
+  cv.addEventListener('mousedown',e=>{isDrag=true;autoR=false;prev={x:e.clientX,y:e.clientY};});
+  cv.addEventListener('mousemove',e=>{if(!isDrag)return;tRY+=(e.clientX-prev.x)*.008;tRX+=(e.clientY-prev.y)*.005;tRX=Math.max(-.5,Math.min(.4,tRX));prev={x:e.clientX,y:e.clientY};});
+  cv.addEventListener('mouseup',()=>isDrag=false);
+  cv.addEventListener('wheel',e=>{tZ+=e.deltaY*.025;tZ=Math.max(8,Math.min(38,tZ));},{passive:true});
 
-  const arToolkitContext=new THREEx.ArToolkitContext({
-    cameraParametersUrl:'https://raw.githack.com/AR-js-org/AR.js/master/data/data/camera_para.dat',
-    detectionMode:'mono',
-  });
-  arToolkitContext.init(()=>{camera.projectionMatrix.copy(arToolkitContext.getProjectionMatrix());});
+  let lt=null,lDist=0;
+  cv.addEventListener('touchstart',e=>{autoR=false;if(e.touches.length===1){isDrag=true;lt={x:e.touches[0].clientX,y:e.touches[0].clientY};}else if(e.touches.length===2){isDrag=false;lDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);}},{passive:true});
+  cv.addEventListener('touchmove',e=>{
+    if(e.touches.length===1&&isDrag&&lt){tRY+=(e.touches[0].clientX-lt.x)*.008;tRX+=(e.touches[0].clientY-lt.y)*.005;tRX=Math.max(-.5,Math.min(.4,tRX));lt={x:e.touches[0].clientX,y:e.touches[0].clientY};}
+    else if(e.touches.length===2){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);tZ-=(d-lDist)*.04;tZ=Math.max(8,Math.min(38,tZ));lDist=d;}
+  },{passive:true});
+  cv.addEventListener('touchend',()=>isDrag=false,{passive:true});
 
-  const markerRoot=new THREE.Group();scene.add(markerRoot);
-  new THREEx.ArMarkerControls(arToolkitContext,markerRoot,{type:'preset',preset:'hiro',size:1});
-
-  const tree=treeGroup.clone(true);
-  tree.scale.setScalar(0.08);
-  markerRoot.add(tree);
-
-  setupControls(tree,()=>true);
-
-  function onResize(){
-    arToolkitSource.onResizeElement();
-    arToolkitSource.copyElementSizeTo(renderer.domElement);
-    if(arToolkitContext.arController!==null)arToolkitSource.copyElementSizeTo(arToolkitContext.arController.canvas);
-  }
-  window.addEventListener('resize',onResize);
-
-  renderer.setAnimationLoop(()=>{
-    renderer.clear();
-    if(arToolkitSource.ready)arToolkitContext.update(arToolkitSource.domElement);
-    renderer.render(scene,camera);
-  });
-}
-
-// ══════════════════════════════════════════════════
-// MODE: 3D VIEWER (no camera needed)
-// ══════════════════════════════════════════════════
-function start3DViewer(){
-  const canvasEl=document.getElementById('ar-canvas');
-  canvasEl.style.display='block';
-  document.getElementById('hud').style.display='flex';
-  document.getElementById('hud-mode-label').textContent='3D Viewer';
-  document.getElementById('hud-hint').textContent='Klik & seret untuk memutar · Scroll untuk zoom';
-
-  const renderer=new THREE.WebGLRenderer({canvas:canvasEl,antialias:true});
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
-  renderer.setSize(window.innerWidth,window.innerHeight);
-  renderer.shadowMap.enabled=true;
-  renderer.toneMapping=THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure=1.1;
-
-  const scene=new THREE.Scene();
-  scene.background=new THREE.Color(0x05100a);
-  scene.fog=new THREE.Fog(0x05100a,25,70);
-
-  scene.add(new THREE.AmbientLight(0x355535,1.0));
-  const sun=new THREE.DirectionalLight(0xfff5d8,2.6);sun.position.set(8,18,9);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);scene.add(sun);
-  const fill=new THREE.DirectionalLight(0x507a60,0.7);fill.position.set(-7,4,-5);scene.add(fill);
-
-  const camera=new THREE.PerspectiveCamera(42,window.innerWidth/window.innerHeight,0.1,200);
-  camera.position.set(0,5.5,22);camera.lookAt(0.2,6,0);
-
-  const tree=treeGroup.clone(true);
-  scene.add(tree);
-
-  let rotY=0,rotX=0,targetRotY=0,targetRotX=0,zoom=22,targetZoom=22;
-  let isDrag=false,prev={x:0,y:0},autoR=true;
-
-  canvasEl.addEventListener('mousedown',e=>{isDrag=true;autoR=false;prev={x:e.clientX,y:e.clientY};});
-  canvasEl.addEventListener('mousemove',e=>{if(!isDrag)return;targetRotY+=(e.clientX-prev.x)*0.008;targetRotX+=(e.clientY-prev.y)*0.005;targetRotX=Math.max(-0.5,Math.min(0.4,targetRotX));prev={x:e.clientX,y:e.clientY};});
-  canvasEl.addEventListener('mouseup',()=>{isDrag=false;});
-  canvasEl.addEventListener('wheel',e=>{targetZoom+=e.deltaY*0.025;targetZoom=Math.max(8,Math.min(36,targetZoom));},{passive:true});
-  let lt=null;
-  canvasEl.addEventListener('touchstart',e=>{isDrag=true;autoR=false;lt={x:e.touches[0].clientX,y:e.touches[0].clientY};});
-  canvasEl.addEventListener('touchmove',e=>{if(!isDrag||!lt)return;targetRotY+=(e.touches[0].clientX-lt.x)*0.008;targetRotX+=(e.touches[0].clientY-lt.y)*0.005;lt={x:e.touches[0].clientX,y:e.touches[0].clientY};});
-  canvasEl.addEventListener('touchend',()=>{isDrag=false;});
-
-  setupControls(tree,()=>true);
-  window.addEventListener('resize',()=>{renderer.setSize(window.innerWidth,window.innerHeight);camera.aspect=window.innerWidth/window.innerHeight;camera.updateProjectionMatrix();});
-
-  let t=0;
-  const leaves=tree.children.filter(c=>c.isMesh&&c.material&&c.material.side===THREE.DoubleSide);
-  const leafInit=leaves.map(l=>({rx:l.rotation.x,rz:l.rotation.z}));
-  const roots=tree.children.filter(c=>c.isMesh&&!c.material.side);
-
-  renderer.setAnimationLoop(()=>{
-    t+=0.01;if(autoR)targetRotY+=0.0025;
-    rotY+=(targetRotY-rotY)*0.055;rotX+=(targetRotX-rotX)*0.055;zoom+=(targetZoom-zoom)*0.06;
+  function loop(){
+    _raf=requestAnimationFrame(loop);
+    time+=0.01;
+    if(autoR)tRY+=.0025;
+    rotY+=(tRY-rotY)*.055;rotX+=(tRX-rotX)*.055;zoom+=(tZ-zoom)*.06;
     tree.rotation.y=rotY;tree.rotation.x=rotX;
-    camera.position.set(0,5.5,zoom);camera.lookAt(0.2,6,0);
-    for(let i=0;i<leaves.length;i+=4){const ir=leafInit[i]||{rx:0,rz:0};leaves[i].rotation.x=ir.rx+Math.sin(t*0.62+i*0.18)*0.034;leaves[i].rotation.z=ir.rz+Math.cos(t*0.47+i*0.23)*0.026;}
-    for(let i=0;i<roots.length;i++){roots[i].rotation.z=Math.sin(t*(0.22+i*0.007)+i*0.618)*0.013;}
-    renderer.render(scene,camera);
-  });
+    _camera.position.set(0,5.5,zoom);_camera.lookAt(0.2,6,0);
+    animateTree(tree,time);
+    _renderer.render(_scene,_camera);
+  }
+  loop();
 }
 
-// ══════════════════════════════════════════════════
-// SHARED CONTROL SETUP
-// ══════════════════════════════════════════════════
-function setupControls(tree,isPlaced){
-  document.getElementById('btn-scale-down').onclick=()=>{
-    treeScale=Math.max(0.2,treeScale*0.75);
-    tree.scale.setScalar(treeScale);
-    showToast(`Skala: ${Math.round(treeScale*100)}%`);
-  };
-  document.getElementById('btn-scale-up').onclick=()=>{
-    treeScale=Math.min(4.0,treeScale*1.33);
-    tree.scale.setScalar(treeScale);
-    showToast(`Skala: ${Math.round(treeScale*100)}%`);
-  };
-  document.getElementById('btn-rotate').onclick=()=>{
-    treeRotation+=Math.PI/4;
-    tree.rotation.y=treeRotation;
-  };
-  document.getElementById('btn-fruiting').onclick=function(){
-    fruitingMode=!fruitingMode;
-    this.classList.toggle('active',fruitingMode);
-    const fg=tree.userData.figGroup||tree.children.find(c=>c.isGroup);
-    if(fg)fg.visible=fruitingMode;
-    const lm=tree.userData.leafMats;
-    if(lm){const h=fruitingMode?0.27:0.265,s=fruitingMode?0.58:0.55,l=fruitingMode?0.15:0.18;lm.forEach((m,i)=>m.color.setHSL(h+i*0.013,s,l+(i%3)*0.03));}
-    showToast(fruitingMode?'Mode Berbuah — Aktif':'Mode Normal');
-  };
+// ═══════════════════════════════════════════════
+// LAUNCH + INIT
+// ═══════════════════════════════════════════════
+function launchMode(mode){
+  hide('scr-home');hide('scr-err');
+  if(mode==='cam')startCamAR();
+  else if(mode==='xr')startWebXR();
+  else start3D();
 }
 
-function showHUD(modeLabel){
-  document.getElementById('hud').style.display='flex';
-  document.getElementById('hud-mode-label').textContent=modeLabel;
-  document.getElementById('hud-back').onclick=()=>{
-    location.reload();
-  };
-}
-
-function setHint(t){document.getElementById('hud-hint').textContent=t;}
-
-let toastTimer=null;
-function showToast(msg){
-  const el=document.getElementById('scale-toast');
-  el.textContent=msg;el.classList.add('show');
-  clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),1800);
-}
-
-// ══════════════════════════════════════════════════
-// INIT
-// ══════════════════════════════════════════════════
 (async()=>{
-  // Preload everything
-  setTimeout(()=>{preloadAssets();},100);
+  // Build textures + tree in background
+  await new Promise(r=>setTimeout(r,80));
+  ensureTree();
 
-  // Check WebXR
-  hasWebXR=await checkWebXR();
+  // Check WebXR availability
+  let xrOk=false;
+  if(navigator.xr){try{xrOk=await navigator.xr.isSessionSupported('immersive-ar');}catch(e){}}
 
-  // Show mode screen
-  setTimeout(()=>{
-    document.getElementById('loading-screen').style.opacity='0';
-    setTimeout(()=>{
-      document.getElementById('loading-screen').style.display='none';
-      document.getElementById('mode-screen').style.display='flex';
+  const xtag=$('xr-tag');
+  if(xrOk){xtag.textContent='Tersedia ✓';}
+  else{xtag.textContent='Tidak tersedia di perangkat ini';xtag.style.borderColor='#666';xtag.style.color='#666';$('mb-xr').classList.add('off');}
 
-      // Gray out WebXR if not supported
-      if(!hasWebXR){
-        const wx=document.getElementById('card-webxr');
-        wx.classList.add('disabled');
-        document.getElementById('webxr-badge').textContent='Tidak Tersedia di perangkat ini';
-        document.getElementById('webxr-badge').style.borderColor='#666';
-        document.getElementById('webxr-badge').style.color='#666';
-      }
-    },600);
-  },1400);
+  // Check camera API (just presence check, not permission)
+  const camOk=!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia);
+  if(!camOk){$('mb-cam').classList.add('off');$('mb-cam').querySelector('.md').textContent='Browser ini tidak mendukung akses kamera.';}
+
+  // Hide loader, show home
+  await new Promise(r=>setTimeout(r,1100));
+  $('scr-load').style.opacity='0';
+  await new Promise(r=>setTimeout(r,480));
+  $('scr-load').style.display='none';
+  showFlex('scr-home');
 
   // Mode buttons
-  document.getElementById('card-webxr').onclick=async()=>{
-    if(!hasWebXR)return;
-    document.getElementById('mode-screen').style.display='none';
-    try{await startWebXR();}catch(e){
-      alert('Gagal memulai WebXR: '+e.message+'\n\nCoba mode Marker AR.');
-      document.getElementById('mode-screen').style.display='flex';
-    }
-  };
-  document.getElementById('card-marker').onclick=()=>{
-    document.getElementById('mode-screen').style.display='none';
-    startMarkerAR();
-  };
-  document.getElementById('card-3d').onclick=()=>{
-    document.getElementById('mode-screen').style.display='none';
-    start3DViewer();
-  };
-
-  // Marker guide dismiss
-  document.getElementById('btn-dismiss-marker').onclick=()=>{launchMarkerAR();};
+  $('mb-cam').onclick=()=>launchMode('cam');
+  $('mb-xr').onclick=()=>launchMode('xr');
+  $('mb-3d').onclick=()=>launchMode('3d');
 
 })();
 
