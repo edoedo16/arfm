@@ -976,13 +976,13 @@
         const cv = $('glc');
         _renderer = new THREE.WebGLRenderer({
           canvas: cv,
-          antialias: true,
+          antialias: false,
           alpha: alpha,
           premultipliedAlpha: false
         });
-        _renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+        _renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5));
         _renderer.setSize(innerWidth, innerHeight);
-        _renderer.shadowMap.enabled = true;
+        _renderer.shadowMap.enabled = !alpha;
         _renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         _renderer.toneMapping = THREE.ACESFilmicToneMapping;
         _renderer.toneMappingExposure = 1.2;
@@ -1106,19 +1106,60 @@
         };
       }
 
-      // ─── CLEANUP ──────────────────────────────────────────────
-      function cleanup() {
-        window.removeEventListener('resize', _rsz);
-        if (_raf) { cancelAnimationFrame(_raf);
-          _raf = null; }
-        if (_renderer) {
-          _renderer.setAnimationLoop(null);
-          _renderer.xr.enabled = false;
-          if (_renderer.xr.getSession()) {
-            try { _renderer.xr.getSession().end(); } catch (e) {}
-          }
-          _renderer.dispose();
+      // ─── CLEANUP & SHARED INPUT ───────────────────────────────
+      let _inputCleanup = null;
+      let _activeStream = null;
+      let _activeVideo = null;
+      let _arSession = null;
+
+      function setModeText(badgeText, labelText) {
+        const badge = $('hud-mode-badge');
+        const label = $('hud-mode-label');
+        if (badge) badge.textContent = badgeText;
+        if (label) label.textContent = labelText;
+      }
+
+      function cleanupInput() {
+        if (_inputCleanup) {
+          try { _inputCleanup(); } catch (e) {}
+          _inputCleanup = null;
         }
+        if (window._gyroHandler) {
+          window.removeEventListener('deviceorientation', window._gyroHandler);
+          window._gyroHandler = null;
+        }
+      }
+
+      function cleanup() {
+        cleanupInput();
+        window.removeEventListener('resize', _rsz);
+        if (_raf) {
+          cancelAnimationFrame(_raf);
+          _raf = null;
+        }
+
+        if (_arSession) {
+          try { _arSession.end(); } catch (e) {}
+          _arSession = null;
+        }
+
+        if (_activeStream) {
+          try { _activeStream.getTracks().forEach(t => t.stop()); } catch (e) {}
+          _activeStream = null;
+        }
+        if (_activeVideo) {
+          try { _activeVideo.pause(); } catch (e) {}
+          try { _activeVideo.srcObject = null; } catch (e) {}
+          try { _activeVideo.remove(); } catch (e) {}
+          _activeVideo = null;
+        }
+
+        if (_renderer) {
+          try { _renderer.setAnimationLoop(null); } catch (e) {}
+          try { _renderer.xr.enabled = false; } catch (e) {}
+          try { _renderer.dispose(); } catch (e) {}
+        }
+
         $('glc').style.display = 'none';
         $('xhair').style.display = 'none';
         $('c-fr').classList.remove('on');
@@ -1126,18 +1167,11 @@
         _scale = 1;
         _extraRotY = 0;
         hideEl('hud');
+        hideEl('scr-err');
         _renderer = null;
         _scene = null;
         _camera = null;
         _currentMode = '';
-        // Hapus elemen video jika ada
-        const v = document.querySelector('video');
-        if (v) v.remove();
-        // Hapus listener gyro jika ada
-        if (window._gyroHandler) {
-          window.removeEventListener('deviceorientation', window._gyroHandler);
-          window._gyroHandler = null;
-        }
       }
 
       function showErr(title, msg) {
@@ -1147,26 +1181,149 @@
         showF('scr-err');
       }
 
-      $('btn-exit').onclick = () => { cleanup();
-        showF('scr-home'); };
-      $('err-back').onclick = () => { hideEl('scr-err');
-        showF('scr-home'); };
-      $('err-3d').onclick = () => { hideEl('scr-err');
-        start3D(); };
+      $('btn-exit').onclick = () => {
+        cleanup();
+        showF('scr-home');
+      };
+      $('err-back').onclick = () => {
+        cleanup();
+        hideEl('scr-err');
+        showF('scr-home');
+      };
+      $('err-3d').onclick = () => {
+        hideEl('scr-err');
+        start3D();
+      };
+
+      function bindOrbitControls(options) {
+        const cv = $('glc');
+        const {
+          onSingleDrag,
+          onPinch,
+          onStart,
+          onEnd,
+          preventTouch = true
+        } = options;
+
+        let dragging = false;
+        let lastX = 0, lastY = 0, lastD = 0;
+
+        const mouseDown = e => {
+          dragging = true;
+          lastX = e.clientX;
+          lastY = e.clientY;
+          if (onStart) onStart(1);
+        };
+        const mouseMove = e => {
+          if (!dragging) return;
+          onSingleDrag(e.clientX - lastX, e.clientY - lastY);
+          lastX = e.clientX;
+          lastY = e.clientY;
+        };
+        const mouseUp = () => {
+          dragging = false;
+          if (onEnd) onEnd();
+        };
+        const wheel = e => {
+          if (options.onWheel) options.onWheel(e.deltaY);
+        };
+
+        const touchStart = e => {
+          if (preventTouch) e.preventDefault();
+          if (e.touches.length === 1) {
+            dragging = true;
+            lastX = e.touches[0].clientX;
+            lastY = e.touches[0].clientY;
+            if (onStart) onStart(1);
+          } else if (e.touches.length >= 2) {
+            dragging = false;
+            lastD = Math.hypot(
+              e.touches[0].clientX - e.touches[1].clientX,
+              e.touches[0].clientY - e.touches[1].clientY
+            );
+            if (onStart) onStart(2);
+          }
+        };
+        const touchMove = e => {
+          if (preventTouch) e.preventDefault();
+          if (e.touches.length === 1 && dragging) {
+            onSingleDrag(
+              e.touches[0].clientX - lastX,
+              e.touches[0].clientY - lastY
+            );
+            lastX = e.touches[0].clientX;
+            lastY = e.touches[0].clientY;
+          } else if (e.touches.length >= 2 && onPinch) {
+            const d = Math.hypot(
+              e.touches[0].clientX - e.touches[1].clientX,
+              e.touches[0].clientY - e.touches[1].clientY
+            );
+            onPinch(d - lastD);
+            lastD = d;
+          }
+        };
+        const touchEnd = () => {
+          dragging = false;
+          if (onEnd) onEnd();
+        };
+
+        cv.addEventListener('mousedown', mouseDown);
+        cv.addEventListener('mousemove', mouseMove);
+        window.addEventListener('mouseup', mouseUp);
+        cv.addEventListener('wheel', wheel, { passive: true });
+        cv.addEventListener('touchstart', touchStart, { passive: false });
+        cv.addEventListener('touchmove', touchMove, { passive: false });
+        cv.addEventListener('touchend', touchEnd, { passive: true });
+        cv.addEventListener('touchcancel', touchEnd, { passive: true });
+
+        return () => {
+          cv.removeEventListener('mousedown', mouseDown);
+          cv.removeEventListener('mousemove', mouseMove);
+          window.removeEventListener('mouseup', mouseUp);
+          cv.removeEventListener('wheel', wheel);
+          cv.removeEventListener('touchstart', touchStart);
+          cv.removeEventListener('touchmove', touchMove);
+          cv.removeEventListener('touchend', touchEnd);
+          cv.removeEventListener('touchcancel', touchEnd);
+        };
+      }
+
+      function requestMotionPermission() {
+        return new Promise(async resolve => {
+          if (typeof DeviceOrientationEvent === 'undefined') {
+            resolve(false);
+            return;
+          }
+          if (typeof DeviceOrientationEvent.requestPermission !== 'function') {
+            resolve(true);
+            return;
+          }
+          try {
+            const result = await DeviceOrientationEvent.requestPermission();
+            resolve(result === 'granted');
+          } catch (e) {
+            resolve(false);
+          }
+        });
+      }
 
       // ─── MODE AR WEBXR ─────────────────────────────────────────
       async function startAR() {
+        cleanup();
+
         if (!navigator.xr) {
-          toast('WebXR tidak tersedia, gunakan AR Gyro.', 2000);
+          toast('WebXR tidak tersedia. Mencoba AR Kamera...', 2200);
           startARGyro();
           return;
         }
+
         let supported = false;
         try {
           supported = await navigator.xr.isSessionSupported('immersive-ar');
-        } catch (e) { supported = false; }
+        } catch (e) {}
+
         if (!supported) {
-          toast('WebXR AR tidak didukung, gunakan AR Gyro.', 2000);
+          toast('AR Nyata tidak didukung. Mencoba AR Kamera...', 2200);
           startARGyro();
           return;
         }
@@ -1174,12 +1331,9 @@
         initRenderer(true, true);
         $('glc').style.display = 'block';
         showF('hud');
-        const badge = $('hud-mode-badge');
-        if (badge) badge.textContent = 'AR Nyata';
-        const label = $('hud-mode-label');
-        if (label) label.textContent = 'Mode AR Nyata';
+        setModeText('AR Nyata', 'Mode AR Nyata');
         $('xhair').style.display = 'block';
-        hint('Gerakkan ponsel untuk mendeteksi lantai...');
+        hint('Gerakkan ponsel perlahan untuk mendeteksi lantai...');
         _currentMode = 'ar';
 
         ensureTree();
@@ -1188,65 +1342,33 @@
         tree.visible = false;
         _scene.add(tree);
 
-        let hitTestSource = null,
-          lastHitPose = null,
-          placed = false,
-          session = null;
+        let hitTestSource = null;
+        let lastHitPose = null;
+        let placed = false;
+        let session = null;
+
         try {
           session = await navigator.xr.requestSession('immersive-ar', {
             requiredFeatures: ['hit-test'],
             optionalFeatures: ['dom-overlay'],
             domOverlay: { root: document.body }
           });
+          _arSession = session;
+          _renderer.xr.setSession(session);
+          hitTestSource = await session.requestHitTestSource({ space: session.viewerSpace });
         } catch (err) {
-          toast('Gagal memulai AR: ' + err.message + '. Beralih ke AR Gyro.', 3000);
-          startARGyro();
-          return;
-        }
-
-        _renderer.xr.setSession(session);
-        try {
-          hitTestSource = await session.requestHitTestSource({
-            space: session.viewerSpace
-          });
-        } catch (err) {
-          toast('Hit-test gagal, beralih ke AR Gyro.', 2500);
-          session.end();
-          startARGyro();
-          return;
-        }
-
-        $('btn-exit').onclick = () => {
-          if (session) session.end();
+          try { if (session) session.end(); } catch (e) {}
+          toast('AR Nyata gagal dimulai. Beralih ke AR Kamera.', 2500);
           cleanup();
-          showF('scr-home');
-        };
+          startARGyro();
+          return;
+        }
 
-        _renderer.setAnimationLoop((time, frame) => {
-          if (!frame) return;
-          const viewerPose = frame.getViewerPose(_renderer.xr.getReferenceSpace());
-          if (!viewerPose) return;
-
-          if (!placed && hitTestSource) {
-            const hitResults = frame.getHitTestResults(hitTestSource);
-            if (hitResults.length > 0) {
-              const hit = hitResults[0];
-              const transform = hit.getPose(_renderer.xr.getReferenceSpace()).transform;
-              lastHitPose = transform;
-              hint('Tap layar untuk menaruh pohon di sini');
-            } else {
-              hint('Gerakkan ponsel perlahan untuk mencari lantai...');
-            }
-          }
-          if (placed && tree.visible) animTree(tree, time * 0.001);
-          _renderer.render(_scene, _camera);
-        });
-
-        const canvas = $('glc');
-
-        function placeTree() {
-          if (placed || !lastHitPose) {
-            if (!lastHitPose) toast('Belum ada permukaan terdeteksi.');
+        const placeTree = e => {
+          if (e) e.preventDefault();
+          if (placed) return;
+          if (!lastHitPose) {
+            toast('Belum ada permukaan terdeteksi. Gerakkan ponsel perlahan.');
             return;
           }
           const pos = new THREE.Vector3(
@@ -1259,12 +1381,17 @@
           tree.visible = true;
           placed = true;
           $('xhair').style.display = 'none';
-          hint('Pohon ditempatkan! Anda bisa berjalan mengelilinginya.');
+          hint('Pohon ditempatkan. Anda bisa berjalan mengelilinginya.');
           toast('🌳 Pohon muncul di lantai!');
-        }
-        canvas.addEventListener('click', placeTree);
-        canvas.addEventListener('touchstart', (e) => { e.preventDefault();
-          placeTree(); }, { passive: false });
+        };
+
+        const cv = $('glc');
+        cv.addEventListener('click', placeTree);
+        cv.addEventListener('touchend', placeTree, { passive: false });
+        _inputCleanup = () => {
+          cv.removeEventListener('click', placeTree);
+          cv.removeEventListener('touchend', placeTree);
+        };
 
         setupControls(() => tree);
         $('c-rt').onclick = () => {
@@ -1272,24 +1399,69 @@
           tree.rotation.y = _extraRotY;
           toast('Putar 45°');
         };
-        window._arSession = session;
+
+        session.addEventListener('end', () => {
+          if (_currentMode === 'ar') {
+            cleanup();
+            showF('scr-home');
+          }
+        }, { once: true });
+
+        _renderer.setAnimationLoop((time, frame) => {
+          if (!frame || _currentMode !== 'ar') return;
+          const refSpace = _renderer.xr.getReferenceSpace();
+          if (!refSpace) return;
+          const viewerPose = frame.getViewerPose(refSpace);
+          if (!viewerPose) return;
+
+          if (!placed && hitTestSource) {
+            const hitResults = frame.getHitTestResults(hitTestSource);
+            if (hitResults.length > 0) {
+              const pose = hitResults[0].getPose(refSpace);
+              if (pose) {
+                lastHitPose = pose.transform;
+                hint('Tap layar untuk menaruh pohon di sini');
+              }
+            } else {
+              hint('Gerakkan ponsel perlahan untuk mencari lantai...');
+            }
+          }
+          if (placed) animTree(tree, time * 0.001);
+          _renderer.render(_scene, _camera);
+        });
       }
 
-      // ─── MODE AR GYRO (Fallback utama) ────────────────────────
+      // ─── MODE AR KAMERA / GYRO ────────────────────────────────
       async function startARGyro() {
-        let stream;
-        try {
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
-            audio: false
-          });
-        } catch (err) {
-          toast('Kamera tidak tersedia, buka 3D Viewer.', 2000);
+        cleanup();
+
+        // Pada iOS, permission motion harus diminta dari alur klik pengguna.
+        // Kita minta sebelum getUserMedia agar transient user activation tidak hilang.
+        const motionPermission = await requestMotionPermission();
+
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          toast('Browser tidak menyediakan akses kamera. Membuka 3D Viewer.', 2500);
           start3D();
           return;
         }
 
-        // Video latar
+        let stream;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: { ideal: 'environment' },
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
+            },
+            audio: false
+          });
+        } catch (err) {
+          toast('Kamera tidak dapat digunakan. Membuka 3D Viewer.', 2500);
+          start3D();
+          return;
+        }
+        _activeStream = stream;
+
         const vid = document.createElement('video');
         vid.srcObject = stream;
         vid.style.position = 'fixed';
@@ -1302,17 +1474,18 @@
         vid.muted = true;
         vid.playsInline = true;
         document.body.prepend(vid);
-        await vid.play();
+        _activeVideo = vid;
+
+        try {
+          await vid.play();
+        } catch (e) {
+          toast('Kamera aktif, tetapi video tidak dapat diputar.', 2200);
+        }
 
         initRenderer(true, false);
         $('glc').style.display = 'block';
         showF('hud');
-        const badge = $('hud-mode-badge');
-        if (badge) badge.textContent = 'AR Gyro';
-        const label = $('hud-mode-label');
-        if (label) label.textContent = 'Mode AR Gyro';
         $('xhair').style.display = 'none';
-        hint('Gerakkan ponsel untuk melihat pohon dari berbagai sudut');
         _currentMode = 'gyro';
 
         ensureTree();
@@ -1320,159 +1493,188 @@
         tree.scale.setScalar(_scale);
         _scene.add(tree);
 
-        // Posisi pohon di depan kamera (jarak tetap)
-        let dist = 16;
+        // Kamera AR Kamera: objek berada pada jarak tetap terhadap kamera.
+        // Sensor mengubah ORIENTASI kamera, bukan posisi objek. Ini membuat
+        // objek tampak stabil ketika pengguna hanya memutar/mencondongkan HP.
         const TARGET = new THREE.Vector3(0, 5, 0);
-        let alpha = 0,
-          beta = 0;
+        const distState = { value: 16 };
+        const MIN_DIST = 6, MAX_DIST = 40;
 
-        function updateCameraFromOrientation() {
-          const phi = THREE.MathUtils.degToRad(beta * 0.8 + 45);
-          const theta = THREE.MathUtils.degToRad(alpha);
-          const camPhi = Math.max(0.1, Math.min(1.4, phi));
-          const camTheta = theta;
-          const x = dist * Math.sin(camTheta) * Math.cos(camPhi);
-          const y = dist * Math.sin(camPhi) + TARGET.y;
-          const z = dist * Math.cos(camTheta) * Math.cos(camPhi);
-          _camera.position.set(x, y, z);
-          _camera.lookAt(TARGET);
+        let sensorAvailable = false;
+        let sensorSeen = false;
+        let calibrated = false;
+        let calibrationInv = new THREE.Quaternion();
+        let sensorQuat = new THREE.Quaternion();
+        let manualYaw = 0;
+        let manualPitch = 0;
+        let smoothQuat = new THREE.Quaternion();
+        let smoothInitialized = false;
+        let lastSensorTime = 0;
+
+        const baseCameraQuat = new THREE.Quaternion();
+        const baseEuler = new THREE.Euler(0, 0, 0, 'YXZ');
+        const sensorEuler = new THREE.Euler(0, 0, 0, 'YXZ');
+        const screenQuat = new THREE.Quaternion();
+        const manualQuat = new THREE.Quaternion();
+        const manualEuler = new THREE.Euler(0, 0, 0, 'YXZ');
+
+        _camera.position.set(0, TARGET.y, distState.value);
+        _camera.lookAt(TARGET);
+        baseCameraQuat.copy(_camera.quaternion);
+
+        function getScreenAngle() {
+          if (screen.orientation && typeof screen.orientation.angle === 'number') {
+            return screen.orientation.angle;
+          }
+          return typeof window.orientation === 'number' ? window.orientation : 0;
         }
-        updateCameraFromOrientation();
 
-        // Event gyroscope
-        let gyroActive = false;
+        function sensorQuaternion(alpha, beta, gamma) {
+          // DeviceOrientation: alpha=Z, beta=X, gamma=Y (derajat).
+          // Konversi mengikuti konvensi Three.js YXZ, lalu kompensasi orientasi layar.
+          sensorEuler.set(
+            THREE.MathUtils.degToRad(beta),
+            THREE.MathUtils.degToRad(alpha),
+            THREE.MathUtils.degToRad(-gamma),
+            'YXZ'
+          );
+          sensorQuat.setFromEuler(sensorEuler);
+          const zee = new THREE.Vector3(0, 0, 1);
+          screenQuat.setFromAxisAngle(zee, -THREE.MathUtils.degToRad(getScreenAngle()));
+          sensorQuat.multiply(screenQuat);
+          return sensorQuat;
+        }
+
+        function applyCamera() {
+          const q = new THREE.Quaternion();
+
+          if (sensorAvailable && sensorSeen && calibrated) {
+            q.copy(calibrationInv).multiply(sensorQuat);
+            if (!smoothInitialized) {
+              smoothQuat.copy(q);
+              smoothInitialized = true;
+            } else {
+              // Smoothing mengurangi jitter sensor murah tanpa membuat kontrol terasa berat.
+              smoothQuat.slerp(q, 0.18);
+            }
+          } else {
+            smoothQuat.identity();
+            smoothInitialized = false;
+          }
+
+          manualEuler.set(manualPitch, manualYaw, 0, 'YXZ');
+          manualQuat.setFromEuler(manualEuler);
+
+          _camera.position.set(0, TARGET.y, distState.value);
+          _camera.quaternion.copy(baseCameraQuat);
+          _camera.quaternion.multiply(smoothQuat);
+          _camera.quaternion.multiply(manualQuat);
+        }
+
+        function calibrate() {
+          calibrationInv.copy(sensorQuat).invert();
+          calibrated = true;
+          smoothInitialized = false;
+          manualYaw = 0;
+          manualPitch = 0;
+          hint('Arah pandang dikalibrasi. Gerakkan ponsel untuk melihat pohon.');
+        }
 
         function handleOrientation(e) {
-          if (e.alpha !== null) {
-            alpha = e.alpha || 0;
-            beta = e.beta || 0;
-            updateCameraFromOrientation();
-            gyroActive = true;
-          }
+          if (e.alpha == null || e.beta == null || e.gamma == null) return;
+          sensorSeen = true;
+          lastSensorTime = performance.now();
+          sensorQuaternion(e.alpha, e.beta, e.gamma);
+          if (!calibrated) calibrate();
+          applyCamera();
         }
 
-        // Minta izin untuk iOS 13+
-        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission ===
-          'function') {
-          try {
-            const perm = await DeviceOrientationEvent.requestPermission();
-            if (perm === 'granted') {
-              window.addEventListener('deviceorientation', handleOrientation);
-              window._gyroHandler = handleOrientation;
-            } else {
-              toast('Izin gerakan ditolak, gunakan sentuhan manual.', 3000);
-            }
-          } catch (e) {
-            // Fallback ke drag
-          }
-        } else {
-          window.addEventListener('deviceorientation', handleOrientation);
+        if (motionPermission) {
+          window.addEventListener('deviceorientation', handleOrientation, true);
           window._gyroHandler = handleOrientation;
+          sensorAvailable = true;
         }
 
-        // Jika gyro tidak aktif setelah 2 detik, beri tahu user
-        setTimeout(() => {
-          if (!gyroActive) {
-            hint('Gerakkan ponsel atau seret layar untuk melihat');
+        const initialMode = sensorAvailable ? 'AR Gyro' : 'AR Kamera';
+        setModeText(initialMode, sensorAvailable ? 'Mode AR Gyro' : 'Mode AR Kamera');
+        hint(sensorAvailable
+          ? 'Gerakkan ponsel. Seret untuk koreksi arah · Pinch untuk zoom'
+          : 'Sensor gerak tidak tersedia. Seret layar untuk melihat · Pinch untuk zoom');
+
+        // Setelah beberapa saat, bedakan "API ada tapi tidak mengirim data" dari gyro aktif.
+        const sensorTimer = setTimeout(() => {
+          if (!sensorSeen && _currentMode === 'gyro') {
+            sensorAvailable = false;
+            calibrated = false;
+            setModeText('AR Kamera', 'Mode AR Kamera');
+            hint('Gyroscope tidak aktif. Gunakan seret layar untuk melihat · Pinch untuk zoom');
           }
-        }, 2000);
+        }, 1800);
 
-        // Drag manual sebagai backup
-        let dragging = false,
-          lastX = 0,
-          lastY = 0,
-          lastD = 0;
-        const cv = $('glc');
-
-        cv.addEventListener('mousedown', e => { dragging = true;
-          lastX = e.clientX;
-          lastY = e.clientY; });
-        cv.addEventListener('mousemove', e => {
-          if (!dragging) return;
-          const dAlpha = (e.clientX - lastX) * 0.005;
-          const dBeta = (e.clientY - lastY) * 0.004;
-          alpha += dAlpha;
-          beta += dBeta;
-          beta = Math.max(-60, Math.min(60, beta));
-          updateCameraFromOrientation();
-          lastX = e.clientX;
-          lastY = e.clientY;
+        const cleanupControls = bindOrbitControls({
+          preventTouch: true,
+          onStart: () => {},
+          onSingleDrag: (dx, dy) => {
+            // Drag selalu menjadi kontrol manual tambahan. Ini penting pada perangkat
+            // tanpa gyro, dan juga berguna untuk mengoreksi framing pada perangkat gyro.
+            manualYaw -= dx * 0.005;
+            manualPitch -= dy * 0.004;
+            manualPitch = THREE.MathUtils.clamp(manualPitch, -1.15, 1.15);
+            applyCamera();
+          },
+          onPinch: delta => {
+            distState.value = THREE.MathUtils.clamp(
+              distState.value - delta * 0.05,
+              MIN_DIST,
+              MAX_DIST
+            );
+            applyCamera();
+          },
+          onWheel: delta => {
+            distState.value = THREE.MathUtils.clamp(
+              distState.value + delta * 0.05,
+              MIN_DIST,
+              MAX_DIST
+            );
+            applyCamera();
+          }
         });
-        cv.addEventListener('mouseup', () => dragging = false);
-        cv.addEventListener('wheel', e => {
-          dist = Math.max(6, Math.min(40, dist + e.deltaY * 0.05));
-          updateCameraFromOrientation();
-        }, { passive: true });
+        _inputCleanup = () => {
+          clearTimeout(sensorTimer);
+          cleanupControls();
+        };
 
-        cv.addEventListener('touchstart', e => {
-          if (e.touches.length === 1) { dragging = true;
-            lastX = e.touches[0].clientX;
-            lastY = e.touches[0].clientY; } else if (e.touches.length === 2) { dragging = false;
-            lastD = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1]
-              .clientY); }
-        }, { passive: true });
-        cv.addEventListener('touchmove', e => {
-          if (e.touches.length === 1 && dragging) {
-            const dAlpha = (e.touches[0].clientX - lastX) * 0.005;
-            const dBeta = (e.touches[0].clientY - lastY) * 0.004;
-            alpha += dAlpha;
-            beta += dBeta;
-            beta = Math.max(-60, Math.min(60, beta));
-            updateCameraFromOrientation();
-            lastX = e.touches[0].clientX;
-            lastY = e.touches[0].clientY;
-          } else if (e.touches.length === 2) {
-            const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1]
-              .clientY);
-            const delta = d - lastD;
-            dist = Math.max(6, Math.min(40, dist - delta * 0.05));
-            updateCameraFromOrientation();
-            lastD = d;
-          }
-        }, { passive: true });
-        cv.addEventListener('touchend', () => dragging = false, { passive: true });
-
-        // Kontrol
         setupControls(() => tree);
         $('c-rt').onclick = () => {
-          alpha += Math.PI / 4;
-          updateCameraFromOrientation();
+          _extraRotY += Math.PI / 4;
+          tree.rotation.y = _extraRotY;
           toast('Putar 45°');
         };
 
-        // Animasi loop
         let time = 0;
-
         function loop() {
+          if (_currentMode !== 'gyro') return;
           _raf = requestAnimationFrame(loop);
           time += 0.01;
+          if (sensorSeen && performance.now() - lastSensorTime > 2500) {
+            // Jika sensor berhenti mengirim event, jangan membekukan aplikasi.
+            sensorAvailable = false;
+          }
+          applyCamera();
           animTree(tree, time);
           _renderer.render(_scene, _camera);
         }
+        applyCamera();
         loop();
-
-        // Exit handler
-        $('btn-exit').onclick = () => {
-          if (stream) stream.getTracks().forEach(t => t.stop());
-          vid.remove();
-          if (window._gyroHandler) {
-            window.removeEventListener('deviceorientation', window._gyroHandler);
-            window._gyroHandler = null;
-          }
-          cleanup();
-          showF('scr-home');
-        };
       }
 
       // ─── MODE 3D VIEWER ────────────────────────────────────────
       function start3D() {
+        cleanup();
         initRenderer(false, false);
         $('glc').style.display = 'block';
         showF('hud');
-        const badge = $('hud-mode-badge');
-        if (badge) badge.textContent = '3D Viewer';
-        const label = $('hud-mode-label');
-        if (label) label.textContent = 'Mode 3D Viewer';
+        setModeText('3D Viewer', 'Mode 3D Viewer');
         $('xhair').style.display = 'none';
         hint('Seret untuk memutar · Pinch untuk zoom');
         _currentMode = '3d';
@@ -1483,13 +1685,12 @@
         _scene.add(tree);
 
         const TARGET = new THREE.Vector3(0, 5, 0);
-        let camTheta = 0,
-          camPhi = 0.35,
-          camDist = 22;
-        const MIN_PHI = -0.1,
-          MAX_PHI = 1.3,
-          MIN_DIST = 6,
-          MAX_DIST = 40;
+        let camTheta = 0;
+        let camPhi = 0.35;
+        let camDist = 22;
+        const MIN_PHI = -0.1, MAX_PHI = 1.3;
+        const MIN_DIST = 6, MAX_DIST = 40;
+        let autoR = true;
 
         function updateCam() {
           const x = camDist * Math.cos(camPhi) * Math.sin(camTheta);
@@ -1500,72 +1701,46 @@
         }
         updateCam();
 
-        let dragging = false,
-          lastX = 0,
-          lastY = 0,
-          lastD = 0;
-        const cv = $('glc');
-        let autoR = true;
-
-        cv.addEventListener('mousedown', e => { autoR = false;
-          dragging = true;
-          lastX = e.clientX;
-          lastY = e.clientY; });
-        cv.addEventListener('mousemove', e => {
-          if (!dragging) return;
-          camTheta -= (e.clientX - lastX) * 0.005;
-          camPhi += (e.clientY - lastY) * 0.004;
-          camPhi = Math.max(MIN_PHI, Math.min(MAX_PHI, camPhi));
-          lastX = e.clientX;
-          lastY = e.clientY;
-          updateCam();
-        });
-        cv.addEventListener('mouseup', () => dragging = false);
-        cv.addEventListener('wheel', e => { camDist += e.deltaY * 0.05;
-          camDist = Math.max(MIN_DIST, Math.min(MAX_DIST, camDist));
-          updateCam(); }, { passive: true });
-
-        cv.addEventListener('touchstart', e => {
-          autoR = false;
-          if (e.touches.length === 1) { dragging = true;
-            lastX = e.touches[0].clientX;
-            lastY = e.touches[0].clientY; } else if (e.touches.length === 2) { dragging = false;
-            lastD = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1]
-            .clientY); }
-        }, { passive: true });
-        cv.addEventListener('touchmove', e => {
-          if (e.touches.length === 1 && dragging) {
-            camTheta -= (e.touches[0].clientX - lastX) * 0.005;
-            camPhi += (e.touches[0].clientY - lastY) * 0.004;
-            camPhi = Math.max(MIN_PHI, Math.min(MAX_PHI, camPhi));
-            lastX = e.touches[0].clientX;
-            lastY = e.touches[0].clientY;
+        const cleanupControls = bindOrbitControls({
+          preventTouch: true,
+          onStart: () => { autoR = false; },
+          onSingleDrag: (dx, dy) => {
+            autoR = false;
+            camTheta -= dx * 0.005;
+            camPhi += dy * 0.004;
+            camPhi = THREE.MathUtils.clamp(camPhi, MIN_PHI, MAX_PHI);
             updateCam();
-          } else if (e.touches.length === 2) {
-            const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1]
-              .clientY);
-            camDist -= (d - lastD) * 0.05;
-            camDist = Math.max(MIN_DIST, Math.min(MAX_DIST, camDist));
-            lastD = d;
+          },
+          onPinch: delta => {
+            autoR = false;
+            camDist = THREE.MathUtils.clamp(camDist - delta * 0.05, MIN_DIST, MAX_DIST);
+            updateCam();
+          },
+          onWheel: delta => {
+            autoR = false;
+            camDist = THREE.MathUtils.clamp(camDist + delta * 0.05, MIN_DIST, MAX_DIST);
             updateCam();
           }
-        }, { passive: true });
-        cv.addEventListener('touchend', () => dragging = false, { passive: true });
+        });
+        _inputCleanup = cleanupControls;
 
         setupControls(() => tree);
         $('c-rt').onclick = () => {
           camTheta += Math.PI / 4;
+          autoR = false;
           updateCam();
           toast('Putar 45°');
         };
 
         let time = 0;
-
         function loop() {
+          if (_currentMode !== '3d') return;
           _raf = requestAnimationFrame(loop);
           time += 0.01;
-          if (autoR) { camTheta += 0.003;
-            updateCam(); }
+          if (autoR) {
+            camTheta += 0.003;
+            updateCam();
+          }
           animTree(tree, time);
           _renderer.render(_scene, _camera);
         }
@@ -1577,7 +1752,7 @@
         await new Promise(r => setTimeout(r, 80));
         ensureTree();
 
-        // Cek WebXR untuk badge
+        // Badge hanya menunjukkan kemampuan WebXR; gyro baru dipastikan saat mode kamera dijalankan.
         let xrSupported = false;
         if (navigator.xr) {
           try {
@@ -1586,13 +1761,8 @@
         }
         const badge = $('ar-badge');
         if (badge) {
-          if (xrSupported) {
-            badge.textContent = 'AR Nyata siap';
-            badge.style.borderColor = '#4caf6e';
-          } else {
-            badge.textContent = 'AR Gyro (fallback)';
-            badge.style.borderColor = '#f39c12';
-          }
+          badge.textContent = xrSupported ? 'AR Nyata siap' : 'AR Kamera otomatis';
+          badge.style.borderColor = xrSupported ? '#4caf6e' : '#f39c12';
         }
 
         await new Promise(r => setTimeout(r, 900));
