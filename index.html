@@ -442,22 +442,30 @@
       // ─── UTILITIES ─────────────────────────────────────────────
       const $ = id => document.getElementById(id);
 
-      function showF(id) { $(id).style.display = 'flex'; }
+      function showF(id) { const el = $(id); if (el) el.style.display = 'flex'; }
 
-      function hideEl(id) { $(id).style.display = 'none'; }
+      function hideEl(id) { const el = $(id); if (el) el.style.display = 'none'; }
 
-      function hint(t) { $('hud-hint').textContent = t; }
+      function hint(t) { const el = $('hud-hint'); if (el) el.textContent = t; }
 
-      function setMsg(t) { $('lmsg').textContent = t; }
+      function setMsg(t) { const el = $('lmsg'); if (el) el.textContent = t; }
 
       let _tt = null;
 
       function toast(m, d = 2200) {
         const e = $('toast');
+        if (!e) return;
         e.textContent = m;
         e.classList.add('show');
         clearTimeout(_tt);
         _tt = setTimeout(() => e.classList.remove('show'), d);
+      }
+
+      function setModeText(badgeText, labelText) {
+        const badge = $('hud-mode-badge');
+        const label = $('hud-mode-label');
+        if (badge) badge.textContent = badgeText || 'Loading';
+        if (label) label.textContent = labelText || 'Mode Loading';
       }
 
       // Seeded RNG untuk tree
@@ -974,6 +982,7 @@
         if (_renderer) { try { _renderer.dispose(); } catch (e) {} }
         _renderer = null;
         const cv = $('glc');
+        if (!cv) return;
         _renderer = new THREE.WebGLRenderer({
           canvas: cv,
           antialias: false,
@@ -1112,13 +1121,6 @@
       let _activeVideo = null;
       let _arSession = null;
 
-      function setModeText(badgeText, labelText) {
-        const badge = $('hud-mode-badge');
-        const label = $('hud-mode-label');
-        if (badge) badge.textContent = badgeText;
-        if (label) label.textContent = labelText;
-      }
-
       function cleanupInput() {
         if (_inputCleanup) {
           try { _inputCleanup(); } catch (e) {}
@@ -1160,14 +1162,17 @@
           try { _renderer.dispose(); } catch (e) {}
         }
 
-        $('glc').style.display = 'none';
-        $('xhair').style.display = 'none';
-        $('c-fr').classList.remove('on');
+        const glc = $('glc');
+        if (glc) glc.style.display = 'none';
+        const xhair = $('xhair');
+        if (xhair) xhair.style.display = 'none';
+        const fr = $('c-fr');
+        if (fr) fr.classList.remove('on');
         _fruit = false;
         _scale = 1;
         _extraRotY = 0;
         hideEl('hud');
-        hideEl('scr-err');
+        // Jangan sembunyikan scr-err di cleanup, biarkan error screen tetap terlihat jika error.
         _renderer = null;
         _scene = null;
         _camera = null;
@@ -1176,8 +1181,10 @@
 
       function showErr(title, msg) {
         cleanup();
-        $('err-title').textContent = title;
-        $('err-msg').textContent = msg;
+        const titleEl = $('err-title');
+        const msgEl = $('err-msg');
+        if (titleEl) titleEl.textContent = title;
+        if (msgEl) msgEl.textContent = msg;
         showF('scr-err');
       }
 
@@ -1197,6 +1204,7 @@
 
       function bindOrbitControls(options) {
         const cv = $('glc');
+        if (!cv) return () => {};
         const {
           onSingleDrag,
           onPinch,
@@ -1206,7 +1214,9 @@
         } = options;
 
         let dragging = false;
-        let lastX = 0, lastY = 0, lastD = 0;
+        let lastX = 0,
+          lastY = 0,
+          lastD = 0;
 
         const mouseDown = e => {
           dragging = true;
@@ -1329,10 +1339,12 @@
         }
 
         initRenderer(true, true);
-        $('glc').style.display = 'block';
+        const glc = $('glc');
+        if (glc) glc.style.display = 'block';
         showF('hud');
         setModeText('AR Nyata', 'Mode AR Nyata');
-        $('xhair').style.display = 'block';
+        const xhair = $('xhair');
+        if (xhair) xhair.style.display = 'block';
         hint('Gerakkan ponsel perlahan untuk mendeteksi lantai...');
         _currentMode = 'ar';
 
@@ -1380,18 +1392,21 @@
           tree.position.y += 0.01;
           tree.visible = true;
           placed = true;
-          $('xhair').style.display = 'none';
+          const xhairEl = $('xhair');
+          if (xhairEl) xhairEl.style.display = 'none';
           hint('Pohon ditempatkan. Anda bisa berjalan mengelilinginya.');
           toast('🌳 Pohon muncul di lantai!');
         };
 
         const cv = $('glc');
-        cv.addEventListener('click', placeTree);
-        cv.addEventListener('touchend', placeTree, { passive: false });
-        _inputCleanup = () => {
-          cv.removeEventListener('click', placeTree);
-          cv.removeEventListener('touchend', placeTree);
-        };
+        if (cv) {
+          cv.addEventListener('click', placeTree);
+          cv.addEventListener('touchend', placeTree, { passive: false });
+          _inputCleanup = () => {
+            cv.removeEventListener('click', placeTree);
+            cv.removeEventListener('touchend', placeTree);
+          };
+        }
 
         setupControls(() => tree);
         $('c-rt').onclick = () => {
@@ -1435,12 +1450,11 @@
       async function startARGyro() {
         cleanup();
 
-        // Pada iOS, permission motion harus diminta dari alur klik pengguna.
-        // Kita minta sebelum getUserMedia agar transient user activation tidak hilang.
+        // Minta permission motion
         const motionPermission = await requestMotionPermission();
 
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-          toast('Browser tidak menyediakan akses kamera. Membuka 3D Viewer.', 2500);
+          toast('Kamera tidak tersedia. Buka 3D Viewer.', 2500);
           start3D();
           return;
         }
@@ -1456,7 +1470,7 @@
             audio: false
           });
         } catch (err) {
-          toast('Kamera tidak dapat digunakan. Membuka 3D Viewer.', 2500);
+          toast('Kamera tidak dapat diakses. Buka 3D Viewer.', 2500);
           start3D();
           return;
         }
@@ -1479,13 +1493,15 @@
         try {
           await vid.play();
         } catch (e) {
-          toast('Kamera aktif, tetapi video tidak dapat diputar.', 2200);
+          // video tetap bisa digunakan meski play gagal
         }
 
         initRenderer(true, false);
-        $('glc').style.display = 'block';
+        const glc = $('glc');
+        if (glc) glc.style.display = 'block';
         showF('hud');
-        $('xhair').style.display = 'none';
+        const xhair = $('xhair');
+        if (xhair) xhair.style.display = 'none';
         _currentMode = 'gyro';
 
         ensureTree();
@@ -1493,12 +1509,11 @@
         tree.scale.setScalar(_scale);
         _scene.add(tree);
 
-        // Kamera AR Kamera: objek berada pada jarak tetap terhadap kamera.
-        // Sensor mengubah ORIENTASI kamera, bukan posisi objek. Ini membuat
-        // objek tampak stabil ketika pengguna hanya memutar/mencondongkan HP.
+        // State kamera
         const TARGET = new THREE.Vector3(0, 5, 0);
         const distState = { value: 16 };
-        const MIN_DIST = 6, MAX_DIST = 40;
+        const MIN_DIST = 6,
+          MAX_DIST = 40;
 
         let sensorAvailable = false;
         let sensorSeen = false;
@@ -1512,12 +1527,12 @@
         let lastSensorTime = 0;
 
         const baseCameraQuat = new THREE.Quaternion();
-        const baseEuler = new THREE.Euler(0, 0, 0, 'YXZ');
         const sensorEuler = new THREE.Euler(0, 0, 0, 'YXZ');
         const screenQuat = new THREE.Quaternion();
         const manualQuat = new THREE.Quaternion();
         const manualEuler = new THREE.Euler(0, 0, 0, 'YXZ');
 
+        // Posisi awal: kamera di depan pohon, sedikit di atas
         _camera.position.set(0, TARGET.y, distState.value);
         _camera.lookAt(TARGET);
         baseCameraQuat.copy(_camera.quaternion);
@@ -1530,8 +1545,6 @@
         }
 
         function sensorQuaternion(alpha, beta, gamma) {
-          // DeviceOrientation: alpha=Z, beta=X, gamma=Y (derajat).
-          // Konversi mengikuti konvensi Three.js YXZ, lalu kompensasi orientasi layar.
           sensorEuler.set(
             THREE.MathUtils.degToRad(beta),
             THREE.MathUtils.degToRad(alpha),
@@ -1554,10 +1567,10 @@
               smoothQuat.copy(q);
               smoothInitialized = true;
             } else {
-              // Smoothing mengurangi jitter sensor murah tanpa membuat kontrol terasa berat.
               smoothQuat.slerp(q, 0.18);
             }
           } else {
+            // Jika sensor tidak aktif, gunakan identitas (tidak ada rotasi sensor)
             smoothQuat.identity();
             smoothInitialized = false;
           }
@@ -1601,7 +1614,7 @@
           ? 'Gerakkan ponsel. Seret untuk koreksi arah · Pinch untuk zoom'
           : 'Sensor gerak tidak tersedia. Seret layar untuk melihat · Pinch untuk zoom');
 
-        // Setelah beberapa saat, bedakan "API ada tapi tidak mengirim data" dari gyro aktif.
+        // Timer untuk deteksi sensor tidak aktif
         const sensorTimer = setTimeout(() => {
           if (!sensorSeen && _currentMode === 'gyro') {
             sensorAvailable = false;
@@ -1615,8 +1628,6 @@
           preventTouch: true,
           onStart: () => {},
           onSingleDrag: (dx, dy) => {
-            // Drag selalu menjadi kontrol manual tambahan. Ini penting pada perangkat
-            // tanpa gyro, dan juga berguna untuk mengoreksi framing pada perangkat gyro.
             manualYaw -= dx * 0.005;
             manualPitch -= dy * 0.004;
             manualPitch = THREE.MathUtils.clamp(manualPitch, -1.15, 1.15);
@@ -1652,18 +1663,21 @@
         };
 
         let time = 0;
+
         function loop() {
           if (_currentMode !== 'gyro') return;
           _raf = requestAnimationFrame(loop);
           time += 0.01;
-          if (sensorSeen && performance.now() - lastSensorTime > 2500) {
-            // Jika sensor berhenti mengirim event, jangan membekukan aplikasi.
+          // Jika sensor berhenti mengirim data, tetap gunakan posisi terakhir.
+          if (sensorSeen && performance.now() - lastSensorTime > 3000) {
             sensorAvailable = false;
           }
+          // Pastikan kamera selalu diterapkan
           applyCamera();
           animTree(tree, time);
           _renderer.render(_scene, _camera);
         }
+        // Aplikasikan kamera sekali sebelum loop dimulai
         applyCamera();
         loop();
       }
@@ -1672,10 +1686,12 @@
       function start3D() {
         cleanup();
         initRenderer(false, false);
-        $('glc').style.display = 'block';
+        const glc = $('glc');
+        if (glc) glc.style.display = 'block';
         showF('hud');
         setModeText('3D Viewer', 'Mode 3D Viewer');
-        $('xhair').style.display = 'none';
+        const xhair = $('xhair');
+        if (xhair) xhair.style.display = 'none';
         hint('Seret untuk memutar · Pinch untuk zoom');
         _currentMode = '3d';
 
@@ -1688,8 +1704,10 @@
         let camTheta = 0;
         let camPhi = 0.35;
         let camDist = 22;
-        const MIN_PHI = -0.1, MAX_PHI = 1.3;
-        const MIN_DIST = 6, MAX_DIST = 40;
+        const MIN_PHI = -0.1,
+          MAX_PHI = 1.3;
+        const MIN_DIST = 6,
+          MAX_DIST = 40;
         let autoR = true;
 
         function updateCam() {
@@ -1733,6 +1751,7 @@
         };
 
         let time = 0;
+
         function loop() {
           if (_currentMode !== '3d') return;
           _raf = requestAnimationFrame(loop);
@@ -1766,19 +1785,26 @@
         }
 
         await new Promise(r => setTimeout(r, 900));
-        $('scr-load').style.opacity = '0';
+        const load = $('scr-load');
+        if (load) load.style.opacity = '0';
         await new Promise(r => setTimeout(r, 480));
-        $('scr-load').style.display = 'none';
+        if (load) load.style.display = 'none';
         showF('scr-home');
 
-        $('mb-ar').onclick = () => {
-          hideEl('scr-home');
-          startAR(); // akan otomatis fallback ke gyro jika gagal
-        };
-        $('mb-3d').onclick = () => {
-          hideEl('scr-home');
-          start3D();
-        };
+        const arBtn = $('mb-ar');
+        const viewerBtn = $('mb-3d');
+        if (arBtn) {
+          arBtn.onclick = () => {
+            hideEl('scr-home');
+            startAR(); // akan fallback ke gyro jika gagal
+          };
+        }
+        if (viewerBtn) {
+          viewerBtn.onclick = () => {
+            hideEl('scr-home');
+            start3D();
+          };
+        }
       })();
 
     })();
