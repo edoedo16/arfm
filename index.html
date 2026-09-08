@@ -1,987 +1,1474 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<title>Ficus minahasae — AR</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<style>
-*{margin:0;padding:0;box-sizing:border-box;}
-html,body{width:100%;height:100%;overflow:hidden;background:#000;
-  font-family:'Segoe UI',system-ui,sans-serif;color:#fff;touch-action:none;}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Ficus minahasae — AR</title>
+  <!-- Three.js r128 (stabil untuk WebXR) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js">
+  </script>
+  <style>
+    /* --- RESET & LAYAR PENUH --- */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      color: #fff;
+      touch-action: none;
+    }
 
-/* Camera feed full-screen */
-#cam{position:fixed;inset:0;width:100%;height:100%;
-  object-fit:cover;z-index:0;display:none;}
+    /* Canvas Three.js — selalu di atas, transparan untuk AR */
+    #glc {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      display: none;
+      background: transparent;
+    }
 
-/* Three.js transparent canvas on top */
-#glc{position:fixed;inset:0;width:100%;height:100%;
-  z-index:1;display:none;background:transparent;}
+    /* --- LOADING --- */
+    #scr-load {
+      position: fixed;
+      inset: 0;
+      z-index: 300;
+      background: linear-gradient(160deg, #081a0c, #030d06);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      transition: opacity .5s;
+    }
+    .sp {
+      width: 36px;
+      height: 36px;
+      border: 2px solid #2e7d52;
+      border-top-color: #4caf6e;
+      border-radius: 50%;
+      animation: sp 1s linear infinite;
+    }
+    @keyframes sp {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+    .l1 {
+      font-size: 9px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: #4caf6e;
+    }
+    .l2 {
+      font-size: 22px;
+      font-style: italic;
+      color: #e8f5e9;
+    }
+    .l3 {
+      font-size: 11px;
+      color: #6d9970;
+    }
+    #lmsg {
+      font-size: 11px;
+      color: #4caf6e;
+      letter-spacing: .5px;
+      min-height: 16px;
+    }
 
-/* ── LOADING ── */
-#scr-load{
-  position:fixed;inset:0;z-index:300;
-  background:linear-gradient(160deg,#081a0c,#030d06);
-  display:flex;flex-direction:column;align-items:center;
-  justify-content:center;gap:12px;transition:opacity .5s;
-}
-.sp{width:36px;height:36px;border:2px solid #2e7d52;
-  border-top-color:#4caf6e;border-radius:50%;animation:sp 1s linear infinite;}
-@keyframes sp{to{transform:rotate(360deg);}}
-.l1{font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#4caf6e;}
-.l2{font-size:22px;font-style:italic;color:#e8f5e9;}
-.l3{font-size:11px;color:#6d9970;}
-#lmsg{font-size:11px;color:#4caf6e;letter-spacing:.5px;min-height:16px;}
+    /* --- HOME (MENU) --- */
+    #scr-home {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      background: linear-gradient(160deg, #081a0c, #030d06);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .h1 {
+      font-size: 9px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: #4caf6e;
+      margin-bottom: 5px;
+    }
+    .h2 {
+      font-size: 22px;
+      font-style: italic;
+      color: #e8f5e9;
+      margin-bottom: 3px;
+      text-align: center;
+    }
+    .h3 {
+      font-size: 11px;
+      color: #6d9970;
+      margin-bottom: 24px;
+      text-align: center;
+      line-height: 1.6;
+      max-width: 280px;
+    }
+    .mlist {
+      width: 100%;
+      max-width: 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .mb {
+      background: rgba(255, 255, 255, .04);
+      border: 1px solid rgba(78, 175, 110, .28);
+      border-radius: 13px;
+      padding: 15px 16px;
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: all .15s;
+    }
+    .mb:active {
+      background: rgba(46, 125, 82, .22);
+      border-color: #4caf6e;
+      transform: scale(.98);
+    }
+    .mb.off {
+      opacity: .35;
+      pointer-events: none;
+    }
+    .mi {
+      font-size: 26px;
+      flex-shrink: 0;
+    }
+    .mt {
+      font-size: 13px;
+      color: #e8f5e9;
+      margin-bottom: 2px;
+    }
+    .md {
+      font-size: 11px;
+      color: #6d9970;
+      line-height: 1.45;
+    }
+    .mk {
+      display: inline-block;
+      margin-top: 4px;
+      padding: 1px 7px;
+      border-radius: 4px;
+      font-size: 9px;
+      letter-spacing: 1px;
+      border: 1px solid #4caf6e;
+      color: #4caf6e;
+    }
 
-/* ── HOME ── */
-#scr-home{
-  position:fixed;inset:0;z-index:200;
-  background:linear-gradient(160deg,#081a0c,#030d06);
-  display:none;flex-direction:column;align-items:center;
-  justify-content:center;padding:24px;
-}
-.h1{font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#4caf6e;margin-bottom:5px;}
-.h2{font-size:22px;font-style:italic;color:#e8f5e9;margin-bottom:3px;text-align:center;}
-.h3{font-size:11px;color:#6d9970;margin-bottom:24px;text-align:center;
-  line-height:1.6;max-width:280px;}
-.mlist{width:100%;max-width:320px;display:flex;flex-direction:column;gap:10px;}
-.mb{background:rgba(255,255,255,.04);border:1px solid rgba(78,175,110,.28);
-  border-radius:13px;padding:15px 16px;display:flex;align-items:center;gap:13px;
-  cursor:pointer;-webkit-tap-highlight-color:transparent;transition:all .15s;}
-.mb:active{background:rgba(46,125,82,.22);border-color:#4caf6e;transform:scale(.98);}
-.mb.off{opacity:.35;pointer-events:none;}
-.mi{font-size:26px;flex-shrink:0;}
-.mt{font-size:13px;color:#e8f5e9;margin-bottom:2px;}
-.md{font-size:11px;color:#6d9970;line-height:1.45;}
-.mk{display:inline-block;margin-top:4px;padding:1px 7px;border-radius:4px;
-  font-size:9px;letter-spacing:1px;border:1px solid #4caf6e;color:#4caf6e;}
+    /* --- HUD (Tombol & Informasi) --- */
+    #hud {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      display: none;
+      flex-direction: column;
+      justify-content: space-between;
+      pointer-events: none;
+    }
+    #hud-top {
+      pointer-events: auto;
+      margin: 13px;
+      background: rgba(0, 0, 0, .55);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(78, 175, 110, .22);
+      border-radius: 13px;
+      padding: 10px 13px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .hn {
+      font-size: 13px;
+      font-style: italic;
+      color: #e8f5e9;
+    }
+    .hm {
+      font-size: 9px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: #4caf6e;
+    }
+    #btn-exit {
+      margin-left: auto;
+      background: rgba(255, 255, 255, .08);
+      border: 1px solid rgba(255, 255, 255, .16);
+      border-radius: 8px;
+      padding: 6px 11px;
+      font-size: 11px;
+      color: #ccc;
+      cursor: pointer;
+      font-family: inherit;
+      -webkit-tap-highlight-color: transparent;
+      pointer-events: auto;
+    }
+    #hud-hint {
+      pointer-events: none;
+      margin: 0 auto;
+      padding: 8px 16px;
+      background: rgba(0, 0, 0, .55);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(78, 175, 110, .18);
+      border-radius: 10px;
+      font-size: 12px;
+      color: #a5c8ac;
+      text-align: center;
+      max-width: 300px;
+    }
+    #hud-bot {
+      pointer-events: auto;
+      margin: 0 13px 18px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 9px;
+    }
+    #ctrl-row {
+      display: flex;
+      gap: 7px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .cb {
+      background: rgba(0, 0, 0, .62);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(78, 175, 110, .30);
+      border-radius: 10px;
+      padding: 9px 13px;
+      font-size: 12px;
+      color: #a5c8ac;
+      cursor: pointer;
+      font-family: inherit;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .cb:active,
+    .cb.on {
+      background: rgba(46, 125, 82, .45);
+      border-color: #4caf6e;
+      color: #e8f5e9;
+    }
 
-/* ── HUD ── */
-#hud{position:fixed;inset:0;z-index:10;display:none;
-  flex-direction:column;justify-content:space-between;pointer-events:none;}
-#hud-top{
-  pointer-events:auto;margin:13px;
-  background:rgba(0,0,0,.55);backdrop-filter:blur(12px);
-  -webkit-backdrop-filter:blur(12px);
-  border:1px solid rgba(78,175,110,.22);border-radius:13px;
-  padding:10px 13px;display:flex;align-items:center;gap:10px;
-}
-.hn{font-size:13px;font-style:italic;color:#e8f5e9;}
-.hm{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:#4caf6e;}
-#btn-exit{
-  margin-left:auto;background:rgba(255,255,255,.08);
-  border:1px solid rgba(255,255,255,.16);border-radius:8px;
-  padding:6px 11px;font-size:11px;color:#ccc;cursor:pointer;
-  font-family:inherit;-webkit-tap-highlight-color:transparent;pointer-events:auto;
-}
-#hud-hint{
-  pointer-events:none;margin:0 auto;padding:8px 16px;
-  background:rgba(0,0,0,.55);backdrop-filter:blur(8px);
-  -webkit-backdrop-filter:blur(8px);
-  border:1px solid rgba(78,175,110,.18);border-radius:10px;
-  font-size:12px;color:#a5c8ac;text-align:center;max-width:300px;
-}
-#hud-bot{
-  pointer-events:auto;margin:0 13px 18px;
-  display:flex;flex-direction:column;align-items:center;gap:9px;
-}
-#ctrl-row{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;}
-.cb{background:rgba(0,0,0,.62);backdrop-filter:blur(8px);
-  -webkit-backdrop-filter:blur(8px);
-  border:1px solid rgba(78,175,110,.30);border-radius:10px;
-  padding:9px 13px;font-size:12px;color:#a5c8ac;cursor:pointer;
-  font-family:inherit;-webkit-tap-highlight-color:transparent;}
-.cb:active,.cb.on{background:rgba(46,125,82,.45);border-color:#4caf6e;color:#e8f5e9;}
+    /* Crosshair — indikator posisi pohon akan muncul */
+    #xhair {
+      display: none;
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 8;
+    }
 
-/* Tap-to-place button */
-#btn-place{
-  display:none;padding:12px 28px;border-radius:30px;
-  background:#4caf6e;border:2px solid rgba(255,255,255,.85);
-  font-size:14px;color:#fff;cursor:pointer;font-family:inherit;
-  font-weight:600;letter-spacing:.5px;
-  box-shadow:0 4px 22px rgba(76,175,110,.55);
-  -webkit-tap-highlight-color:transparent;transition:transform .12s;
-  pointer-events:auto;
-}
-#btn-place:active{transform:scale(.92);}
+    /* Toast notifikasi kecil */
+    #toast {
+      position: fixed;
+      bottom: 150px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, .72);
+      border: 1px solid rgba(78, 175, 110, .28);
+      border-radius: 10px;
+      padding: 8px 16px;
+      font-size: 12px;
+      color: #a5c8ac;
+      pointer-events: none;
+      z-index: 400;
+      white-space: nowrap;
+      opacity: 0;
+      transition: opacity .22s;
+    }
+    #toast.show {
+      opacity: 1;
+    }
 
-/* Crosshair — shows where tree will appear */
-#xhair{
-  display:none;position:fixed;left:50%;top:50%;
-  transform:translate(-50%,-50%);pointer-events:none;z-index:8;
-}
-
-/* Toast */
-#toast{
-  position:fixed;bottom:150px;left:50%;transform:translateX(-50%);
-  background:rgba(0,0,0,.72);border:1px solid rgba(78,175,110,.28);
-  border-radius:10px;padding:8px 16px;font-size:12px;color:#a5c8ac;
-  pointer-events:none;z-index:400;white-space:nowrap;
-  opacity:0;transition:opacity .22s;
-}
-#toast.show{opacity:1;}
-
-/* ── ERROR ── */
-#scr-err{
-  position:fixed;inset:0;z-index:350;
-  background:linear-gradient(160deg,#1a0808,#090404);
-  display:none;flex-direction:column;align-items:center;
-  justify-content:center;padding:26px;text-align:center;gap:12px;
-}
-.ei{font-size:44px;}
-.et{font-size:16px;color:#e88;}
-.em{font-size:12px;color:#a88;line-height:1.65;max-width:270px;}
-.eb{background:#2e7d52;border:none;border-radius:8px;color:#fff;
-  padding:10px 24px;font-size:13px;cursor:pointer;font-family:inherit;}
-.eb2{background:transparent;border:1px solid #2e7d52;border-radius:8px;
-  color:#4caf6e;padding:9px 22px;font-size:12px;cursor:pointer;font-family:inherit;}
-</style>
+    /* --- ERROR --- */
+    #scr-err {
+      position: fixed;
+      inset: 0;
+      z-index: 350;
+      background: linear-gradient(160deg, #1a0808, #090404);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 26px;
+      text-align: center;
+      gap: 12px;
+    }
+    .ei {
+      font-size: 44px;
+    }
+    .et {
+      font-size: 16px;
+      color: #e88;
+    }
+    .em {
+      font-size: 12px;
+      color: #a88;
+      line-height: 1.65;
+      max-width: 270px;
+    }
+    .eb {
+      background: #2e7d52;
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      padding: 10px 24px;
+      font-size: 13px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .eb2 {
+      background: transparent;
+      border: 1px solid #2e7d52;
+      border-radius: 8px;
+      color: #4caf6e;
+      padding: 9px 22px;
+      font-size: 12px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+  </style>
 </head>
 <body>
 
-<video id="cam" playsinline autoplay muted></video>
-<canvas id="glc"></canvas>
+  <!-- Canvas utama untuk Three.js -->
+  <canvas id="glc"></canvas>
 
-<!-- LOADING -->
-<div id="scr-load">
-  <div class="l1">Botanika AR</div>
-  <div class="l2">Ficus minahasae</div>
-  <div class="l3">Beringin Minahasa · Ara Sulawesi</div>
-  <div class="sp"></div>
-  <div id="lmsg">Memuat model...</div>
-</div>
+  <!-- LOADING -->
+  <div id="scr-load">
+    <div class="l1">Botanika AR</div>
+    <div class="l2">Ficus minahasae</div>
+    <div class="l3">Beringin Minahasa · Ara Sulawesi</div>
+    <div class="sp"></div>
+    <div id="lmsg">Memuat model...</div>
+  </div>
 
-<!-- HOME -->
-<div id="scr-home">
-  <div class="h1">Botanika AR</div>
-  <div class="h2">Ficus minahasae</div>
-  <div class="h3">Lihat pohon Beringin Minahasa seolah berada di depanmu</div>
-  <div class="mlist">
+  <!-- HOME (MENU UTAMA) -->
+  <div id="scr-home">
+    <div class="h1">Botanika AR</div>
+    <div class="h2">Ficus minahasae</div>
+    <div class="h3">Lihat pohon Beringin Minahasa seolah berada di depanmu</div>
+    <div class="mlist">
 
-    <div class="mb" id="mb-ar">
-      <div class="mi">📷</div>
-      <div>
-        <div class="mt">AR Kamera</div>
-        <div class="md">Pohon muncul di tengah kamera. Tap layar untuk mengunci posisi, lalu seret untuk melihat dari berbagai sudut.</div>
-        <span class="mk">Android &amp; iOS · Semua browser HTTPS</span>
+      <!-- Tombol AR (WebXR) -->
+      <div class="mb" id="mb-ar">
+        <div class="mi">📷</div>
+        <div>
+          <div class="mt">AR Nyata (WebXR)</div>
+          <div class="md">Pohon muncul di lantai ruangan. Gerakkan ponsel untuk melihat dari semua sudut.</div>
+          <span class="mk">Android + Chrome + ARCore</span>
+        </div>
       </div>
-    </div>
 
-    <div class="mb" id="mb-3d">
-      <div class="mi">🌳</div>
-      <div>
-        <div class="mt">3D Viewer</div>
-        <div class="md">Eksplorasi model 3D interaktif tanpa kamera. Seret untuk memutar, pinch untuk zoom.</div>
-        <span class="mk">Semua perangkat</span>
+      <!-- Tombol 3D Viewer (fallback) -->
+      <div class="mb" id="mb-3d">
+        <div class="mi">🌳</div>
+        <div>
+          <div class="mt">3D Viewer</div>
+          <div class="md">Eksplorasi model 3D interaktif tanpa kamera. Seret untuk memutar, pinch untuk zoom.</div>
+          <span class="mk">Semua perangkat</span>
+        </div>
       </div>
+
     </div>
-
   </div>
-</div>
 
-<!-- HUD -->
-<div id="hud">
-  <div id="hud-top">
-    <span style="font-size:20px;">🌳</span>
-    <div>
-      <div class="hn">Ficus minahasae</div>
-      <div class="hm" id="hud-mode">AR Kamera</div>
+  <!-- HUD (Overlay kontrol) -->
+  <div id="hud">
+    <div id="hud-top">
+      <span style="font-size:20px;">🌳</span>
+      <div>
+        <div class="hn">Ficus minahasae</div>
+        <div class="hm" id="hud-mode">AR Kamera</div>
+      </div>
+      <button id="btn-exit">✕ Keluar</button>
     </div>
-    <button id="btn-exit">✕ Keluar</button>
-  </div>
-  <div id="hud-hint">Memuat...</div>
-  <div id="hud-bot">
-    <div id="ctrl-row">
-      <button class="cb" id="c-sm">⊖ Kecil</button>
-      <button class="cb" id="c-rt">↺ Putar</button>
-      <button class="cb" id="c-fr">🌰 Berbuah</button>
-      <button class="cb" id="c-lg">⊕ Besar</button>
+    <div id="hud-hint">Memuat...</div>
+    <div id="hud-bot">
+      <div id="ctrl-row">
+        <button class="cb" id="c-sm">⊖ Kecil</button>
+        <button class="cb" id="c-rt">↺ Putar</button>
+        <button class="cb" id="c-fr">🌰 Berbuah</button>
+        <button class="cb" id="c-lg">⊕ Besar</button>
+      </div>
+      <!-- Tombol ini hanya dipakai di 3D Viewer. Di AR, penempatan via tap layar -->
+      <button id="btn-place" style="display:none;">🌱 Taruh Pohon di Sini</button>
     </div>
-    <button id="btn-place">🌱 Taruh Pohon di Sini</button>
   </div>
-</div>
 
-<!-- Crosshair — appears at screen center before placement -->
-<svg id="xhair" width="72" height="72" viewBox="0 0 72 72">
-  <circle cx="36" cy="36" r="30" fill="none" stroke="#4caf6e"
-    stroke-width="2" stroke-dasharray="9 5" opacity=".9"/>
-  <circle cx="36" cy="36" r="5" fill="none" stroke="#4caf6e" stroke-width="2"/>
-  <line x1="36" y1="6"  x2="36" y2="22" stroke="#4caf6e" stroke-width="2"/>
-  <line x1="36" y1="50" x2="36" y2="66" stroke="#4caf6e" stroke-width="2"/>
-  <line x1="6"  y1="36" x2="22" y2="36" stroke="#4caf6e" stroke-width="2"/>
-  <line x1="50" y1="36" x2="66" y2="36" stroke="#4caf6e" stroke-width="2"/>
-</svg>
+  <!-- Crosshair untuk AR -->
+  <svg id="xhair" width="72" height="72" viewBox="0 0 72 72">
+    <circle cx="36" cy="36" r="30" fill="none" stroke="#4caf6e" stroke-width="2" stroke-dasharray="9 5" opacity=".9" />
+    <circle cx="36" cy="36" r="5" fill="none" stroke="#4caf6e" stroke-width="2" />
+    <line x1="36" y1="6" x2="36" y2="22" stroke="#4caf6e" stroke-width="2" />
+    <line x1="36" y1="50" x2="36" y2="66" stroke="#4caf6e" stroke-width="2" />
+    <line x1="6" y1="36" x2="22" y2="36" stroke="#4caf6e" stroke-width="2" />
+    <line x1="50" y1="36" x2="66" y2="36" stroke="#4caf6e" stroke-width="2" />
+  </svg>
 
-<div id="toast"></div>
+  <div id="toast"></div>
 
-<!-- ERROR -->
-<div id="scr-err">
-  <div class="ei">⚠️</div>
-  <div class="et" id="err-title">Terjadi Kesalahan</div>
-  <div class="em" id="err-msg"></div>
-  <button class="eb" id="err-back">← Kembali ke Menu</button>
-  <button class="eb2" id="err-3d">Buka 3D Viewer</button>
-</div>
+  <!-- ERROR -->
+  <div id="scr-err">
+    <div class="ei">⚠️</div>
+    <div class="et" id="err-title">Terjadi Kesalahan</div>
+    <div class="em" id="err-msg"></div>
+    <button class="eb" id="err-back">← Kembali ke Menu</button>
+    <button class="eb2" id="err-3d">Buka 3D Viewer</button>
+  </div>
 
-<script>
-(function(){
-'use strict';
+  <script>
+    (function() {
+      'use strict';
 
-// ─────────────────────────────────────────────
-// UTILS
-// ─────────────────────────────────────────────
-const $=id=>document.getElementById(id);
-function showF(id){$(id).style.display='flex';}
-function hideEl(id){$(id).style.display='none';}
-function hint(t){$('hud-hint').textContent=t;}
-function setMsg(t){$('lmsg').textContent=t;}
-let _tt=null;
-function toast(m,d=2200){
-  const e=$('toast');e.textContent=m;e.classList.add('show');
-  clearTimeout(_tt);_tt=setTimeout(()=>e.classList.remove('show'),d);
-}
+      // ─────────────────────────────────────────────────────────────
+      // 1. UTILITIES
+      // ─────────────────────────────────────────────────────────────
 
-// Seeded RNG (deterministic tree shape)
-let _s=42;
-function rng(){_s=(_s*1664525+1013904223)&0xffffffff;return(_s>>>0)/0xffffffff;}
+      const $ = id => document.getElementById(id);
 
-// FBM noise
-function h2(x,y){return(Math.sin(x*127.1+y*311.7)*43758.5453)%1;}
-function sn(x,y){
-  const ix=Math.floor(x),iy=Math.floor(y),fx=x-ix,fy=y-iy;
-  const ux=fx*fx*(3-2*fx),uy=fy*fy*(3-2*fy);
-  return h2(ix,iy)*(1-ux)*(1-uy)+h2(ix+1,iy)*ux*(1-uy)+
-    h2(ix,iy+1)*(1-ux)*uy+h2(ix+1,iy+1)*ux*uy;
-}
-function fbm(x,y,o){
-  let v=0,a=.5,f=1;
-  for(let i=0;i<o;i++){v+=a*sn(x*f,y*f);a*=.5;f*=2.1;}
-  return v;
-}
+      function showF(id) { $(id).style.display = 'flex'; }
 
-// ─────────────────────────────────────────────
-// TEXTURES
-// ─────────────────────────────────────────────
-function mkBark(){
-  const W=128,H=256,c=document.createElement('canvas');
-  c.width=W;c.height=H;
-  const ctx=c.getContext('2d'),img=ctx.createImageData(W,H);
-  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
-    const n=fbm(x/W*5,y/H*8,5);
-    const g=Math.pow(Math.abs(Math.sin(x/W*Math.PI*16+n*3)),.35);
-    const fi=fbm(x/W*3+4,y/H*4+2,3)>.62?.5:1;
-    const i4=(y*W+x)*4;
-    img.data[i4]  =Math.min(255,Math.floor((35+n*30+g*18)*fi));
-    img.data[i4+1]=Math.min(255,Math.floor((17+n*14+g*9 )*fi));
-    img.data[i4+2]=Math.min(255,Math.floor((6 +n*7 +g*4 )*fi));
-    img.data[i4+3]=255;
-  }
-  ctx.putImageData(img,0,0);
-  ctx.strokeStyle='rgba(60,30,8,.45)';ctx.lineWidth=1.5;
-  for(let i=0;i<25;i++){
-    const lx=Math.random()*W,ly=Math.random()*H,ll=4+Math.random()*14;
-    ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(lx+ll,ly+(Math.random()-.5)*2);ctx.stroke();
-  }
-  const t=new THREE.CanvasTexture(c);
-  t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(2,3);
-  return t;
-}
-function mkGnd(){
-  const W=128,H=128,c=document.createElement('canvas');
-  c.width=W;c.height=H;
-  const ctx=c.getContext('2d'),img=ctx.createImageData(W,H);
-  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
-    const n=fbm(x/W*6,y/H*6,4),i4=(y*W+x)*4;
-    img.data[i4]=Math.floor(12+n*20);img.data[i4+1]=Math.floor(22+n*28);
-    img.data[i4+2]=Math.floor(8+n*12);img.data[i4+3]=255;
-  }
-  ctx.putImageData(img,0,0);
-  const t=new THREE.CanvasTexture(c);
-  t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(4,4);
-  return t;
-}
-function mkFig(){
-  const W=32,H=32,c=document.createElement('canvas');
-  c.width=W;c.height=H;
-  const ctx=c.getContext('2d'),img=ctx.createImageData(W,H);
-  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
-    const n=fbm(x/W*5,y/H*5,3),i4=(y*W+x)*4;
-    img.data[i4]=Math.floor(95+n*62);img.data[i4+1]=Math.floor(24+n*26);
-    img.data[i4+2]=Math.floor(6+n*12);img.data[i4+3]=255;
-  }
-  ctx.putImageData(img,0,0);
-  const g=ctx.createRadialGradient(W/2,H*.12,0,W/2,H*.12,W*.2);
-  g.addColorStop(0,'rgba(2,1,0,.95)');g.addColorStop(1,'rgba(0,0,0,0)');
-  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
-  return new THREE.CanvasTexture(c);
-}
-function mkRoot(){
-  const W=32,H=64,c=document.createElement('canvas');
-  c.width=W;c.height=H;
-  const ctx=c.getContext('2d'),img=ctx.createImageData(W,H);
-  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
-    const n=fbm(x/W*4,y/H*8,3);
-    const s=Math.abs(Math.sin(x/W*Math.PI*7+n*2))*.33;
-    const i4=(y*W+x)*4;
-    img.data[i4]=Math.floor(27+n*24+s*14);img.data[i4+1]=Math.floor(14+n*12+s*7);
-    img.data[i4+2]=Math.floor(5+n*6+s*3);img.data[i4+3]=255;
-  }
-  ctx.putImageData(img,0,0);
-  const t=new THREE.CanvasTexture(c);
-  t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(1,5);
-  return t;
-}
+      function hideEl(id) { $(id).style.display = 'none'; }
 
-// ─────────────────────────────────────────────
-// BUILD TREE
-// ─────────────────────────────────────────────
-function buildTree(bT,gT,fT,rT){
-  const G=new THREE.Group();
-  const S=0.013;
+      function hint(t) { $('hud-hint').textContent = t; }
 
-  const bM=new THREE.MeshLambertMaterial({map:bT});
-  const stM=new THREE.MeshLambertMaterial({color:0x140a02});
-  const gM=new THREE.MeshLambertMaterial({map:gT});
-  const fMs=[
-    new THREE.MeshLambertMaterial({map:fT,color:0xb83808}),
-    new THREE.MeshLambertMaterial({map:fT,color:0x962c06}),
-    new THREE.MeshLambertMaterial({map:fT,color:0xcc4210}),
-    new THREE.MeshLambertMaterial({map:fT,color:0x3c1e08}),
-    new THREE.MeshLambertMaterial({map:fT,color:0x501e06}),
-  ];
-  const lMs=[];
-  for(let i=0;i<7;i++){
-    const h=.265+i*.013;
-    lMs.push(new THREE.MeshLambertMaterial({
-      color:new THREE.Color().setHSL(h,.55+rng()*.28,.13+rng()*.13),
-      side:THREE.DoubleSide
-    }));
-  }
+      function setMsg(t) { $('lmsg').textContent = t; }
 
-  // Fig lathe geo
-  function mkFG(r){
-    const pts=[];
-    for(let i=0;i<=10;i++){
-      const t=i/10,w=Math.sin(t*Math.PI)*r*(.82+Math.sin(t*Math.PI*1.5)*.18);
-      pts.push(new THREE.Vector2(w,r*1.5*(t-.5)));
-    }
-    return new THREE.LatheGeometry(pts,7);
-  }
-  const fgR=mkFG(S*5.2),fgU=mkFG(S*3.9);
-  const stG=new THREE.CylinderGeometry(S*.5,S*.75,S*3.5,4);
+      let _tt = null;
 
-  function addFig(P,x,y,z){
-    const ripe=rng()>.32;
-    const fi=new THREE.Mesh(ripe?fgR:fgU,fMs[Math.floor(rng()*(ripe?3:2))+(ripe?0:3)]);
-    fi.position.set(x,y,z);
-    fi.rotation.set((rng()-.5)*.5,rng()*Math.PI*2,(rng()-.5)*.5);
-    fi.castShadow=true;
-    const sm=new THREE.Mesh(stG,stM);sm.position.y=S*5.5;fi.add(sm);
-    P.add(fi);
-  }
-  function sFig(P,x,y,z,n){
-    for(let i=0;i<n;i++)addFig(P,x+(rng()-.5)*S*17,y+(rng()-.5)*S*13,z+(rng()-.5)*S*17);
-  }
-
-  // Ground disc
-  const gd=new THREE.Mesh(new THREE.CircleGeometry(S*120,44),gM);
-  gd.rotation.x=-Math.PI/2;gd.receiveShadow=true;G.add(gd);
-
-  // Surface roots radiating out
-  for(let i=0;i<9;i++){
-    const a=rng()*Math.PI*2,len=S*(75+rng()*165);
-    const pts=[];
-    for(let j=0;j<=10;j++){
-      const t=j/10;
-      pts.push(new THREE.Vector3(
-        Math.cos(a+t*.18*(rng()-.5))*(S*60+t*len),
-        -t*S*5,
-        Math.sin(a+t*.18*(rng()-.5))*(S*60+t*len)
-      ));
-    }
-    const sr=new THREE.Mesh(
-      new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),8,S*(2.8+rng()*4),5,false),
-      new THREE.MeshLambertMaterial({map:rT,color:0x5c3a18})
-    );
-    sr.castShadow=true;G.add(sr);
-  }
-
-  // Fallen figs near base
-  for(let i=0;i<12;i++){
-    const a=rng()*Math.PI*2,r=S*(30+rng()*200);
-    const ff=new THREE.Mesh(new THREE.SphereGeometry(S*(3+rng()*2),5,4),fMs[3+Math.floor(rng()*2)]);
-    ff.position.set(Math.cos(a)*r,S*2,Math.sin(a)*r);ff.scale.y=.55;G.add(ff);
-  }
-
-  // ── TRUNK: bent CatmullRom spine ──
-  const SP=[
-    new THREE.Vector3(0,0,0),
-    new THREE.Vector3(S*22,S*115,S*10),
-    new THREE.Vector3(S*48,S*248,S*6),
-    new THREE.Vector3(S*60,S*392,-S*14),
-    new THREE.Vector3(S*40,S*525,-S*30),
-    new THREE.Vector3(S*14,S*660,-S*10),
-    new THREE.Vector3(0,S*780,0),
-  ];
-  const tC=new THREE.CatmullRomCurve3(SP);
-
-  function bldTk(){
-    const LO=34,CI=12,vA=[],uA=[],iA=[];
-    for(let i=0;i<=LO;i++){
-      const t=i/LO,pt=tC.getPoint(t),tg=tC.getTangent(t).normalize();
-      const up=new THREE.Vector3(0,1,0);
-      const ri=new THREE.Vector3().crossVectors(up,tg).normalize();
-      if(ri.lengthSq()<.001)ri.set(1,0,0);
-      const fw=new THREE.Vector3().crossVectors(tg,ri).normalize();
-      const bR=S*THREE.MathUtils.lerp(112,22,t);
-      for(let j=0;j<=CI;j++){
-        const ang=(j/CI)*Math.PI*2;
-        const nv=fbm(Math.cos(ang)*1.8+t*5,Math.sin(ang)*1.8+t*3,3)*.21;
-        const kn=Math.sin(ang*3+t*7)*.05;
-        const as=.10*Math.sin(ang+.8)+.05*Math.cos(ang*2+1.2);
-        const r=bR*(1+nv+kn+as);
-        vA.push(
-          pt.x+ri.x*Math.cos(ang)*r+fw.x*Math.sin(ang)*r,
-          pt.y+ri.y*Math.cos(ang)*r+fw.y*Math.sin(ang)*r,
-          pt.z+ri.z*Math.cos(ang)*r+fw.z*Math.sin(ang)*r
-        );
-        uA.push(j/CI,t*4);
+      function toast(m, d = 2200) {
+        const e = $('toast');
+        e.textContent = m;
+        e.classList.add('show');
+        clearTimeout(_tt);
+        _tt = setTimeout(() => e.classList.remove('show'), d);
       }
-    }
-    for(let i=0;i<LO;i++)for(let j=0;j<CI;j++){
-      const a=i*(CI+1)+j,b=a+1,c=a+(CI+1),d=c+1;
-      iA.push(a,c,b,b,c,d);
-    }
-    const geo=new THREE.BufferGeometry();
-    geo.setAttribute('position',new THREE.Float32BufferAttribute(vA,3));
-    geo.setAttribute('uv',new THREE.Float32BufferAttribute(uA,2));
-    geo.setIndex(iA);geo.computeVertexNormals();
-    return geo;
-  }
-  const tM=new THREE.Mesh(bldTk(),bM);
-  tM.castShadow=true;tM.receiveShadow=true;G.add(tM);
 
-  // Bark knots
-  for(let i=0;i<5;i++){
-    const t=.1+rng()*.7,pt=tC.getPoint(t),a=rng()*Math.PI*2;
-    const bR=S*THREE.MathUtils.lerp(112,22,t),kr=S*(12+rng()*14);
-    const kg=new THREE.SphereGeometry(kr,6,5);kg.scale(1,.6,1);
-    const km=new THREE.Mesh(kg,new THREE.MeshLambertMaterial({map:bT,color:0x6a3e1a}));
-    km.position.set(pt.x+Math.cos(a)*(bR+kr*.5),pt.y,pt.z+Math.sin(a)*(bR+kr*.5));
-    km.castShadow=true;G.add(km);
-  }
+      // Seeded RNG agar bentuk pohon selalu konsisten (deterministik)
+      let _s = 42;
 
-  // Buttress roots
-  for(let i=0;i<8;i++){
-    const a=rng()*Math.PI*2,bH=S*(140+rng()*190),sp=S*(95+rng()*105),th=S*(8+rng()*10);
-    const pts=[];
-    for(let j=0;j<=14;j++){
-      const t=j/14,co=Math.pow(1-t,1.8)*sp,w=Math.sin(t*Math.PI*2+i)*(rng()*.18);
-      pts.push(new THREE.Vector3(Math.cos(a+w*.1)*(S*75+co),t*bH+Math.sin(t*Math.PI)*S*28,Math.sin(a+w*.1)*(S*75+co)));
-    }
-    const bm=new THREE.Mesh(
-      new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),12,th,7,false),
-      new THREE.MeshLambertMaterial({map:bT,color:new THREE.Color(.27+rng()*.07,.14+rng()*.04,.05+rng()*.03)})
-    );
-    bm.castShadow=true;G.add(bm);
-  }
-
-  // ── BRANCHES ──
-  const bEPs=[];
-  function addBr(sx,sy,sz,ex,ey,ez,r,layer){
-    const m1x=THREE.MathUtils.lerp(sx,ex,.33)+(rng()-.5)*S*32;
-    const m1y=THREE.MathUtils.lerp(sy,ey,.33)-S*22*layer+(rng()-.5)*S*14;
-    const m1z=THREE.MathUtils.lerp(sz,ez,.33)+(rng()-.5)*S*32;
-    const m2x=THREE.MathUtils.lerp(sx,ex,.67)+(rng()-.5)*S*26;
-    const m2y=THREE.MathUtils.lerp(sy,ey,.67)-S*36*layer+(rng()-.5)*S*10;
-    const m2z=THREE.MathUtils.lerp(sz,ez,.67)+(rng()-.5)*S*26;
-    const cv=new THREE.CatmullRomCurve3([
-      new THREE.Vector3(sx,sy,sz),new THREE.Vector3(m1x,m1y,m1z),
-      new THREE.Vector3(m2x,m2y,m2z),new THREE.Vector3(ex,ey,ez)
-    ]);
-    const br=layer===0?.82:layer===1?.72:.60;
-    const mesh=new THREE.Mesh(
-      new THREE.TubeGeometry(cv,layer<2?9:6,r,6,false),
-      new THREE.MeshLambertMaterial({map:bT,color:new THREE.Color(br,br*.82,br*.65)})
-    );
-    mesh.castShadow=true;G.add(mesh);
-    bEPs.push({pos:new THREE.Vector3(ex,ey,ez),layer});
-  }
-  const tp=tC.getPoint(1),mp=tC.getPoint(.55);
-  addBr(tp.x,tp.y,tp.z,tp.x-S*265,tp.y+S*172,tp.z-S*132,S*21,0);
-  addBr(tp.x,tp.y,tp.z,tp.x+S*275,tp.y+S*190,tp.z+S*112,S*21,0);
-  addBr(tp.x,tp.y,tp.z,tp.x+S*95, tp.y+S*210,tp.z-S*265,S*19,0);
-  addBr(tp.x,tp.y,tp.z,tp.x-S*130,tp.y+S*202,tp.z+S*260,S*18,0);
-  addBr(tp.x,tp.y,tp.z,tp.x+S*30, tp.y+S*238,tp.z+S*35, S*17,0);
-  addBr(mp.x,mp.y,mp.z,mp.x-S*210,mp.y+S*190,mp.z+S*155,S*15,0);
-  addBr(mp.x,mp.y,mp.z,mp.x+S*225,mp.y+S*172,mp.z-S*115,S*14,0);
-  const pS=bEPs.slice();
-  pS.forEach(ep=>{
-    const n=2+Math.floor(rng()*2);
-    for(let k=0;k<n;k++){
-      const sp=S*(148+rng()*138),ax=rng()*Math.PI*2;
-      addBr(ep.pos.x,ep.pos.y,ep.pos.z,ep.pos.x+Math.cos(ax)*sp,ep.pos.y+S*(102+rng()*115),ep.pos.z+Math.sin(ax)*sp,S*(8+rng()*5),1);
-    }
-  });
-  bEPs.filter(e=>e.layer===1).forEach(ep=>{
-    if(rng()<.75){
-      const sp=S*(92+rng()*105),ax=rng()*Math.PI*2;
-      addBr(ep.pos.x,ep.pos.y,ep.pos.z,ep.pos.x+Math.cos(ax)*sp,ep.pos.y+S*(85+rng()*88),ep.pos.z+Math.sin(ax)*sp,S*(4.5+rng()*3),2);
-    }
-  });
-
-  // ── LEAVES ──
-  function lGeo(lw,ll){
-    const sh=new THREE.Shape(),n=12;
-    sh.moveTo(-ll*.5,0);
-    for(let i=1;i<=n;i++){const t=i/n,x=(t-.5)*ll,w=Math.pow(Math.sin(t*Math.PI),.75)*lw*.5,cm=Math.sin(t*Math.PI)*.07*ll;sh.lineTo(x,w+cm);}
-    for(let i=n-1;i>=0;i--){const t=i/n,x=(t-.5)*ll,w=Math.pow(Math.sin(t*Math.PI),.75)*lw*.5,cm=Math.sin(t*Math.PI)*.07*ll;sh.lineTo(x,-w+cm);}
-    sh.closePath();return new THREE.ShapeGeometry(sh,3);
-  }
-  function spL(cx,cy,cz,rad,cnt){
-    for(let i=0;i<cnt;i++){
-      const lw=S*(22+rng()*18),ll=S*(45+rng()*49);
-      const lf=new THREE.Mesh(lGeo(lw,ll),lMs[i%lMs.length]);
-      const th=rng()*Math.PI*2,ph=(rng()-.5)*Math.PI*.75,r=rng()*rad;
-      lf.position.set(cx+r*Math.cos(th)*Math.cos(ph),cy+r*Math.abs(Math.sin(ph))*.5+rng()*S*20,cz+r*Math.sin(th)*Math.cos(ph));
-      lf.rotation.set((rng()-.5)*1.3+.15,rng()*Math.PI*2,(rng()-.5)*1.2);
-      lf.castShadow=true;G.add(lf);
-    }
-  }
-  bEPs.forEach(ep=>{
-    if(ep.layer===2)spL(ep.pos.x,ep.pos.y,ep.pos.z,S*112,15);
-    else if(ep.layer===1)spL(ep.pos.x,ep.pos.y,ep.pos.z,S*68,6);
-    else spL(ep.pos.x,ep.pos.y,ep.pos.z,S*40,3);
-  });
-  for(let i=0;i<16;i++){
-    const ep=bEPs[Math.floor(rng()*bEPs.length)];
-    spL(ep.pos.x+(rng()-.5)*S*148,ep.pos.y+rng()*S*110,ep.pos.z+(rng()-.5)*S*148,S*132,11);
-  }
-
-  // ── HANGING ROOTS + FIGS ──
-  const figG=new THREE.Group();G.add(figG);figG.visible=false;
-
-  for(let i=0;i<72;i++){
-    const t=.08+rng()*.85,ang=rng()*Math.PI*2;
-    const pt=tC.getPoint(t),tg=tC.getTangent(t).normalize();
-    const ri=new THREE.Vector3().crossVectors(new THREE.Vector3(0,1,0),tg).normalize();
-    if(ri.lengthSq()<.001)ri.set(1,0,0);
-    const fw=new THREE.Vector3().crossVectors(tg,ri).normalize();
-    const bR=S*THREE.MathUtils.lerp(112,22,t)*1.04;
-    const ox=pt.x+ri.x*Math.cos(ang)*bR+fw.x*Math.sin(ang)*bR;
-    const oy=pt.y;
-    const oz=pt.z+ri.z*Math.cos(ang)*bR+fw.z*Math.sin(ang)*bR;
-    const rG=rng()>.36,mxL=pt.y,len=rG?mxL:mxL*(.26+rng()*.54);
-    const swX=(rng()-.5)*S*65,swZ=(rng()-.5)*S*65,tw=(rng()-.5)*S*20;
-    const nSg=20,pts=[];
-    for(let j=0;j<=nSg;j++){
-      const tR=j/nSg,bow=Math.sin(tR*Math.PI)*.7,d=tR*tR*.24,wb=Math.sin(tR*Math.PI*1.8+i)*S*5;
-      pts.push(new THREE.Vector3(ox+(bow+d)*swX+wb*.35,oy-tR*len,oz+(bow+d)*swZ+wb*.28+tw*tR));
-    }
-    const crv=new THREE.CatmullRomCurve3(pts);
-    const rTh=rG?(S*(1.9+rng()*2.1)):(S*(1.3+rng()*1.3));
-    const rm=new THREE.Mesh(
-      new THREE.TubeGeometry(crv,20,rTh,5,false),
-      new THREE.MeshLambertMaterial({map:rT,color:new THREE.Color(.24+rng()*.08,.13+rng()*.05,.04+rng()*.03)})
-    );
-    rm.castShadow=true;G.add(rm);
-    const nFP=Math.floor(2+len/S*.0065);
-    for(let j=0;j<nFP;j++){
-      if(rng()<.77){
-        const fp=crv.getPoint(.06+rng()*.88);
-        const fa=rng()*Math.PI*2,fo=S*(3.5+rng()*3);
-        sFig(figG,fp.x+Math.cos(fa)*fo,fp.y,fp.z+Math.sin(fa)*fo,2+Math.floor(rng()*3));
+      function rng() {
+        _s = (_s * 1664525 + 1013904223) & 0xffffffff;
+        return (_s >>> 0) / 0xffffffff;
       }
-    }
-  }
-  for(let i=0;i<9;i++){
-    const t=.05+rng()*.88,a=rng()*Math.PI*2;
-    const pt=tC.getPoint(t),tg=tC.getTangent(t).normalize();
-    const ri=new THREE.Vector3().crossVectors(new THREE.Vector3(0,1,0),tg).normalize();
-    if(ri.lengthSq()<.001)ri.set(1,0,0);
-    const fw=new THREE.Vector3().crossVectors(tg,ri).normalize();
-    const bR=S*THREE.MathUtils.lerp(112,22,t)*1.07;
-    sFig(figG,pt.x+ri.x*Math.cos(a)*bR+fw.x*Math.sin(a)*bR,pt.y,pt.z+ri.z*Math.cos(a)*bR+fw.z*Math.sin(a)*bR,3+Math.floor(rng()*3));
-  }
 
-  G.userData.figGroup=figG;
-  G.userData.leafMats=lMs;
-  return G;
-}
+      // FBM noise untuk tekstur procedural
+      function h2(x, y) { return (Math.sin(x * 127.1 + y * 311.7) * 43758.5453) % 1; }
 
-// ─────────────────────────────────────────────
-// GLOBAL STATE
-// ─────────────────────────────────────────────
-let _renderer=null,_scene=null,_camera=null;
-let _proto=null,_bT,_gT,_fT,_rT;
-let _scale=1,_extraRotY=0,_fruit=false;
-let _raf=null,_stream=null;
+      function sn(x, y) {
+        const ix = Math.floor(x),
+          iy = Math.floor(y),
+          fx = x - ix,
+          fy = y - iy;
+        const ux = fx * fx * (3 - 2 * fx),
+          uy = fy * fy * (3 - 2 * fy);
+        return h2(ix, iy) * (1 - ux) * (1 - uy) +
+          h2(ix + 1, iy) * ux * (1 - uy) +
+          h2(ix, iy + 1) * (1 - ux) * uy +
+          h2(ix + 1, iy + 1) * ux * uy;
+      }
 
-// ─────────────────────────────────────────────
-// RENDERER
-// ─────────────────────────────────────────────
-function initRenderer(alpha){
-  if(_renderer){try{_renderer.dispose();}catch(e){}}_renderer=null;
-  const cv=$('glc');
-  _renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha,premultipliedAlpha:false});
-  _renderer.setPixelRatio(Math.min(devicePixelRatio,2));
-  _renderer.setSize(innerWidth,innerHeight);
-  _renderer.shadowMap.enabled=true;
-  _renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-  _renderer.toneMapping=THREE.ACESFilmicToneMapping;
-  _renderer.toneMappingExposure=1.2;
-  alpha?_renderer.setClearColor(0x000000,0):_renderer.setClearColor(0x05100a,1);
+      function fbm(x, y, o) {
+        let v = 0,
+          a = .5,
+          f = 1;
+        for (let i = 0; i < o; i++) { v += a * sn(x * f, y * f);
+          a *= .5;
+          f *= 2.1; }
+        return v;
+      }
 
-  _scene=new THREE.Scene();
-  if(!alpha){_scene.background=new THREE.Color(0x05100a);_scene.fog=new THREE.Fog(0x05100a,22,68);}
+      // ─────────────────────────────────────────────────────────────
+      // 2. TEKSTUR PROCEDURAL (Canvas 2D)
+      // ─────────────────────────────────────────────────────────────
 
-  _scene.add(new THREE.AmbientLight(0x3a5a3a,1.0));
+      function mkBark() {
+        const W = 128,
+          H = 256,
+          c = document.createElement('canvas');
+        c.width = W;
+        c.height = H;
+        const ctx = c.getContext('2d'),
+          img = ctx.createImageData(W, H);
+        for (let y = 0; y < H; y++)
+          for (let x = 0; x < W; x++) {
+            const n = fbm(x / W * 5, y / H * 8, 5);
+            const g = Math.pow(Math.abs(Math.sin(x / W * Math.PI * 16 + n * 3)), .35);
+            const fi = fbm(x / W * 3 + 4, y / H * 4 + 2, 3) > .62 ? .5 : 1;
+            const i4 = (y * W + x) * 4;
+            img.data[i4] = Math.min(255, Math.floor((35 + n * 30 + g * 18) * fi));
+            img.data[i4 + 1] = Math.min(255, Math.floor((17 + n * 14 + g * 9) * fi));
+            img.data[i4 + 2] = Math.min(255, Math.floor((6 + n * 7 + g * 4) * fi));
+            img.data[i4 + 3] = 255;
+          }
+        ctx.putImageData(img, 0, 0);
+        const t = new THREE.CanvasTexture(c);
+        t.wrapS = t.wrapT = THREE.RepeatWrapping;
+        t.repeat.set(2, 3);
+        return t;
+      }
 
-  const sun=new THREE.DirectionalLight(0xfff5d8,2.5);
-  sun.position.set(7,16,8);
-  sun.castShadow=true;sun.shadow.mapSize.set(512,512);sun.shadow.bias=-.001;
-  _scene.add(sun);
+      function mkGnd() {
+        const W = 128,
+          H = 128,
+          c = document.createElement('canvas');
+        c.width = W;
+        c.height = H;
+        const ctx = c.getContext('2d'),
+          img = ctx.createImageData(W, H);
+        for (let y = 0; y < H; y++)
+          for (let x = 0; x < W; x++) {
+            const n = fbm(x / W * 6, y / H * 6, 4),
+              i4 = (y * W + x) * 4;
+            img.data[i4] = Math.floor(12 + n * 20);
+            img.data[i4 + 1] = Math.floor(22 + n * 28);
+            img.data[i4 + 2] = Math.floor(8 + n * 12);
+            img.data[i4 + 3] = 255;
+          }
+        ctx.putImageData(img, 0, 0);
+        const t = new THREE.CanvasTexture(c);
+        t.wrapS = t.wrapT = THREE.RepeatWrapping;
+        t.repeat.set(4, 4);
+        return t;
+      }
 
-  const fill=new THREE.DirectionalLight(0x507a60,0.7);
-  fill.position.set(-6,4,-5);
-  _scene.add(fill);
+      function mkFig() {
+        const W = 32,
+          H = 32,
+          c = document.createElement('canvas');
+        c.width = W;
+        c.height = H;
+        const ctx = c.getContext('2d'),
+          img = ctx.createImageData(W, H);
+        for (let y = 0; y < H; y++)
+          for (let x = 0; x < W; x++) {
+            const n = fbm(x / W * 5, y / H * 5, 3),
+              i4 = (y * W + x) * 4;
+            img.data[i4] = Math.floor(95 + n * 62);
+            img.data[i4 + 1] = Math.floor(24 + n * 26);
+            img.data[i4 + 2] = Math.floor(6 + n * 12);
+            img.data[i4 + 3] = 255;
+          }
+        ctx.putImageData(img, 0, 0);
+        const g = ctx.createRadialGradient(W / 2, H * .12, 0, W / 2, H * .12, W * .2);
+        g.addColorStop(0, 'rgba(2,1,0,.95)');
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, W, H);
+        return new THREE.CanvasTexture(c);
+      }
 
-  _scene.add(new THREE.HemisphereLight(0x448844,0x2a1a0a,.5));
+      function mkRoot() {
+        const W = 32,
+          H = 64,
+          c = document.createElement('canvas');
+        c.width = W;
+        c.height = H;
+        const ctx = c.getContext('2d'),
+          img = ctx.createImageData(W, H);
+        for (let y = 0; y < H; y++)
+          for (let x = 0; x < W; x++) {
+            const n = fbm(x / W * 4, y / H * 8, 3);
+            const s = Math.abs(Math.sin(x / W * Math.PI * 7 + n * 2)) * .33;
+            const i4 = (y * W + x) * 4;
+            img.data[i4] = Math.floor(27 + n * 24 + s * 14);
+            img.data[i4 + 1] = Math.floor(14 + n * 12 + s * 7);
+            img.data[i4 + 2] = Math.floor(5 + n * 6 + s * 3);
+            img.data[i4 + 3] = 255;
+          }
+        ctx.putImageData(img, 0, 0);
+        const t = new THREE.CanvasTexture(c);
+        t.wrapS = t.wrapT = THREE.RepeatWrapping;
+        t.repeat.set(1, 5);
+        return t;
+      }
 
-  _camera=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,.01,200);
-  window.addEventListener('resize',_rsz);
-}
-function _rsz(){
-  if(!_renderer||!_camera)return;
-  _renderer.setSize(innerWidth,innerHeight);
-  _camera.aspect=innerWidth/innerHeight;
-  _camera.updateProjectionMatrix();
-}
+      // ─────────────────────────────────────────────────────────────
+      // 3. MEMBANGUN POHON (Procedural 3D)
+      // ─────────────────────────────────────────────────────────────
 
-function ensureTree(){
-  if(_proto)return;
-  setMsg('Membuat tekstur...');_bT=mkBark();_gT=mkGnd();_fT=mkFig();_rT=mkRoot();
-  setMsg('Membangun pohon...');_proto=buildTree(_bT,_gT,_fT,_rT);setMsg('Siap!');
-}
+      function buildTree(bT, gT, fT, rT) {
+        const G = new THREE.Group();
+        const S = 0.013; // skala global
 
-function cloneTree(){
-  const t=_proto.clone(true);
-  t.userData.figGroup=null;
-  t.traverse(o=>{if(o.isGroup&&o!==t&&!t.userData.figGroup)t.userData.figGroup=o;});
-  t.userData.leafMats=_proto.userData.leafMats;
-  return t;
-}
+        const bM = new THREE.MeshLambertMaterial({ map: bT });
+        const stM = new THREE.MeshLambertMaterial({ color: 0x140a02 });
+        const gM = new THREE.MeshLambertMaterial({ map: gT });
+        const fMs = [
+          new THREE.MeshLambertMaterial({ map: fT, color: 0xb83808 }),
+          new THREE.MeshLambertMaterial({ map: fT, color: 0x962c06 }),
+          new THREE.MeshLambertMaterial({ map: fT, color: 0xcc4210 }),
+          new THREE.MeshLambertMaterial({ map: fT, color: 0x3c1e08 }),
+          new THREE.MeshLambertMaterial({ map: fT, color: 0x501e06 }),
+        ];
+        const lMs = [];
+        for (let i = 0; i < 7; i++) {
+          const h = .265 + i * .013;
+          lMs.push(new THREE.MeshLambertMaterial({
+            color: new THREE.Color().setHSL(h, .55 + rng() * .28, .13 + rng() * .13),
+            side: THREE.DoubleSide
+          }));
+        }
 
-// Leaf + root animation (cached per tree)
-function animTree(tree,time){
-  if(!tree._lv){
-    tree._lv=[];tree._li=[];tree._rv=[];
-    tree.traverse(o=>{
-      if(!o.isMesh)return;
-      if(o.material&&o.material.side===THREE.DoubleSide){tree._lv.push(o);tree._li.push({rx:o.rotation.x,rz:o.rotation.z});}
-      else tree._rv.push(o);
-    });
-  }
-  for(let i=0;i<tree._lv.length;i+=4){
-    const ir=tree._li[i]||{rx:0,rz:0};
-    tree._lv[i].rotation.x=ir.rx+Math.sin(time*.62+i*.18)*.034;
-    tree._lv[i].rotation.z=ir.rz+Math.cos(time*.47+i*.23)*.026;
-  }
-  for(let i=0;i<tree._rv.length;i++)
-    tree._rv[i].rotation.z=Math.sin(time*(.22+i*.008)+i*.618)*.013;
-}
+        // Geometri buah ara (fig)
+        function mkFG(r) {
+          const pts = [];
+          for (let i = 0; i <= 10; i++) {
+            const t = i / 10,
+              w = Math.sin(t * Math.PI) * r * (.82 + Math.sin(t * Math.PI * 1.5) * .18);
+            pts.push(new THREE.Vector2(w, r * 1.5 * (t - .5)));
+          }
+          return new THREE.LatheGeometry(pts, 7);
+        }
+        const fgR = mkFG(S * 5.2),
+          fgU = mkFG(S * 3.9);
+        const stG = new THREE.CylinderGeometry(S * .5, S * .75, S * 3.5, 4);
 
-function bindControls(getT){
-  $('c-sm').onclick=()=>{_scale=Math.max(.15,_scale*.78);const t=getT();if(t)t.scale.setScalar(_scale);toast('Skala: '+Math.round(_scale*100)+'%');};
-  $('c-lg').onclick=()=>{_scale=Math.min(4,_scale*1.28);const t=getT();if(t)t.scale.setScalar(_scale);toast('Skala: '+Math.round(_scale*100)+'%');};
-  $('c-rt').onclick=()=>{_extraRotY+=Math.PI/4;const t=getT();if(t)t.rotation.y=_extraRotY;};
-  $('c-fr').onclick=function(){
-    _fruit=!_fruit;this.classList.toggle('on',_fruit);
-    const t=getT();if(!t)return;
-    const fg=t.userData.figGroup;if(fg)fg.visible=_fruit;
-    const lm=t.userData.leafMats;
-    if(lm){const h=_fruit?.27:.265,s=_fruit?.58:.55,l=_fruit?.15:.18;lm.forEach((m,i)=>m.color.setHSL(h+i*.013,s,l+(i%3)*.03));}
-    toast(_fruit?'Mode Berbuah Aktif':'Mode Normal');
-  };
-}
+        function addFig(P, x, y, z) {
+          const ripe = rng() > .32;
+          const fi = new THREE.Mesh(ripe ? fgR : fgU, fMs[Math.floor(rng() * (ripe ? 3 : 2)) + (ripe ? 0 : 3)]);
+          fi.position.set(x, y, z);
+          fi.rotation.set((rng() - .5) * .5, rng() * Math.PI * 2, (rng() - .5) * .5);
+          fi.castShadow = true;
+          const sm = new THREE.Mesh(stG, stM);
+          sm.position.y = S * 5.5;
+          fi.add(sm);
+          P.add(fi);
+        }
 
-function cleanup(){
-  window.removeEventListener('resize',_rsz);
-  if(_raf){cancelAnimationFrame(_raf);_raf=null;}
-  if(_renderer)_renderer.setAnimationLoop(null);
-  if(_stream){_stream.getTracks().forEach(t=>t.stop());_stream=null;}
-  const v=$('cam');v.srcObject=null;v.style.display='none';
-  $('glc').style.display='none';
-  $('xhair').style.display='none';
-  $('btn-place').style.display='none';
-  $('c-fr').classList.remove('on');
-  _fruit=false;_scale=1;_extraRotY=0;
-  hideEl('hud');
-  if(_renderer){try{_renderer.dispose();}catch(e){}}_renderer=null;_scene=null;_camera=null;
-}
+        function sFig(P, x, y, z, n) {
+          for (let i = 0; i < n; i++) addFig(P, x + (rng() - .5) * S * 17, y + (rng() - .5) * S * 13, z + (rng() - .5) * S *
+            17);
+        }
 
-function showErr(title,msg){
-  cleanup();$('err-title').textContent=title;$('err-msg').textContent=msg;showF('scr-err');
-}
+        // -- Ground (cakram tanah) --
+        const gd = new THREE.Mesh(new THREE.CircleGeometry(S * 120, 44), gM);
+        gd.rotation.x = -Math.PI / 2;
+        gd.receiveShadow = true;
+        G.add(gd);
 
-$('btn-exit').onclick=()=>{cleanup();showF('scr-home');};
-$('err-back').onclick=()=>{hideEl('scr-err');showF('scr-home');};
-$('err-3d').onclick=()=>{hideEl('scr-err');start3D();};
+        // -- Akar permukaan (surface roots) --
+        for (let i = 0; i < 9; i++) {
+          const a = rng() * Math.PI * 2,
+            len = S * (75 + rng() * 165);
+          const pts = [];
+          for (let j = 0; j <= 10; j++) {
+            const t = j / 10;
+            pts.push(new THREE.Vector3(
+              Math.cos(a + t * .18 * (rng() - .5)) * (S * 60 + t * len),
+              -t * S * 5,
+              Math.sin(a + t * .18 * (rng() - .5)) * (S * 60 + t * len)
+            ));
+          }
+          const sr = new THREE.Mesh(
+            new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 8, S * (2.8 + rng() * 4), 5, false),
+            new THREE.MeshLambertMaterial({ map: rT, color: 0x5c3a18 })
+          );
+          sr.castShadow = true;
+          G.add(sr);
+        }
 
-// ─────────────────────────────────────────────
-// MODE A — AR KAMERA
-//
-// Approach:
-// - Camera feed fills screen
-// - Three.js transparent canvas on top
-// - Tree placed at fixed world pos (0,0,-4)
-// - CAMERA orbits the tree via touch drag
-//   (theta = horizontal angle, phi = vertical angle)
-// - Result: tree stays "locked" in place on screen
-//   and you drag to see it from different angles
-// ─────────────────────────────────────────────
-async function startAR(){
-  let stream;
-  try{
-    stream=await navigator.mediaDevices.getUserMedia({
-      video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},
-      audio:false
-    });
-  }catch(err){
-    const isP=err.name==='NotAllowedError'||err.name==='PermissionDeniedError';
-    showErr(
-      isP?'Izin Kamera Ditolak':'Kamera Tidak Tersedia',
-      isP?'Izinkan akses kamera di popup browser. Pastikan URL menggunakan HTTPS.'
-        :'Kamera tidak dapat dibuka: '+err.message
-    );
-    return;
-  }
+        // -- Buah ara jatuh di bawah pohon --
+        for (let i = 0; i < 12; i++) {
+          const a = rng() * Math.PI * 2,
+            r = S * (30 + rng() * 200);
+          const ff = new THREE.Mesh(new THREE.SphereGeometry(S * (3 + rng() * 2), 5, 4), fMs[3 + Math.floor(rng() * 2)]);
+          ff.position.set(Math.cos(a) * r, S * 2, Math.sin(a) * r);
+          ff.scale.y = .55;
+          G.add(ff);
+        }
 
-  _stream=stream;
-  const vid=$('cam');
-  vid.srcObject=stream;vid.style.display='block';
-  await new Promise(r=>{vid.onloadedmetadata=()=>{vid.play().catch(()=>{});r();};});
+        // -- BATANG UTAMA (spine melengkung) --
+        const SP = [
+          new THREE.Vector3(0, 0, 0),
+          new THREE.Vector3(S * 22, S * 115, S * 10),
+          new THREE.Vector3(S * 48, S * 248, S * 6),
+          new THREE.Vector3(S * 60, S * 392, -S * 14),
+          new THREE.Vector3(S * 40, S * 525, -S * 30),
+          new THREE.Vector3(S * 14, S * 660, -S * 10),
+          new THREE.Vector3(0, S * 780, 0),
+        ];
+        const tC = new THREE.CatmullRomCurve3(SP);
 
-  initRenderer(true);
-  $('glc').style.display='block';
+        function bldTk() {
+          const LO = 34,
+            CI = 12,
+            vA = [],
+            uA = [],
+            iA = [];
+          for (let i = 0; i <= LO; i++) {
+            const t = i / LO,
+              pt = tC.getPoint(t),
+              tg = tC.getTangent(t).normalize();
+            const up = new THREE.Vector3(0, 1, 0);
+            const ri = new THREE.Vector3().crossVectors(up, tg).normalize();
+            if (ri.lengthSq() < .001) ri.set(1, 0, 0);
+            const fw = new THREE.Vector3().crossVectors(tg, ri).normalize();
+            const bR = S * THREE.MathUtils.lerp(112, 22, t);
+            for (let j = 0; j <= CI; j++) {
+              const ang = (j / CI) * Math.PI * 2;
+              const nv = fbm(Math.cos(ang) * 1.8 + t * 5, Math.sin(ang) * 1.8 + t * 3, 3) * .21;
+              const kn = Math.sin(ang * 3 + t * 7) * .05;
+              const as = .10 * Math.sin(ang + .8) + .05 * Math.cos(ang * 2 + 1.2);
+              const r = bR * (1 + nv + kn + as);
+              vA.push(
+                pt.x + ri.x * Math.cos(ang) * r + fw.x * Math.sin(ang) * r,
+                pt.y + ri.y * Math.cos(ang) * r + fw.y * Math.sin(ang) * r,
+                pt.z + ri.z * Math.cos(ang) * r + fw.z * Math.sin(ang) * r
+              );
+              uA.push(j / CI, t * 4);
+            }
+          }
+          for (let i = 0; i < LO; i++)
+            for (let j = 0; j < CI; j++) {
+              const a = i * (CI + 1) + j,
+                b = a + 1,
+                c = a + (CI + 1),
+                d = c + 1;
+              iA.push(a, c, b, b, c, d);
+            }
+          const geo = new THREE.BufferGeometry();
+          geo.setAttribute('position', new THREE.Float32BufferAttribute(vA, 3));
+          geo.setAttribute('uv', new THREE.Float32BufferAttribute(uA, 2));
+          geo.setIndex(iA);
+          geo.computeVertexNormals();
+          return geo;
+        }
+        const tM = new THREE.Mesh(bldTk(), bM);
+        tM.castShadow = true;
+        tM.receiveShadow = true;
+        G.add(tM);
 
-  ensureTree();
-  const tree=cloneTree();
-  tree.scale.setScalar(_scale);
-  // Tree anchored at world origin — camera will orbit around it
-  tree.position.set(0,0,0);
-  tree.visible=false;
-  _scene.add(tree);
+        // -- Bonggol / tonjolan batang (knots) --
+        for (let i = 0; i < 5; i++) {
+          const t = .1 + rng() * .7,
+            pt = tC.getPoint(t),
+            a = rng() * Math.PI * 2;
+          const bR = S * THREE.MathUtils.lerp(112, 22, t),
+            kr = S * (12 + rng() * 14);
+          const kg = new THREE.SphereGeometry(kr, 6, 5);
+          kg.scale(1, .6, 1);
+          const km = new THREE.Mesh(kg, new THREE.MeshLambertMaterial({ map: bT, color: 0x6a3e1a }));
+          km.position.set(pt.x + Math.cos(a) * (bR + kr * .5), pt.y, pt.z + Math.sin(a) * (bR + kr * .5));
+          km.castShadow = true;
+          G.add(km);
+        }
 
-  showF('hud');
-  $('hud-mode').textContent='AR Kamera';
-  $('btn-place').style.display='flex';
-  $('xhair').style.display='block';
-  hint('Arahkan crosshair ke area lantai, lalu tap "Taruh Pohon di Sini"');
+        // -- AKAR BANIR (Buttress roots) --
+        for (let i = 0; i < 8; i++) {
+          const a = rng() * Math.PI * 2,
+            bH = S * (140 + rng() * 190),
+            sp = S * (95 + rng() * 105),
+            th = S * (8 + rng() * 10);
+          const pts = [];
+          for (let j = 0; j <= 14; j++) {
+            const t = j / 14,
+              co = Math.pow(1 - t, 1.8) * sp,
+              w = Math.sin(t * Math.PI * 2 + i) * (rng() * .18);
+            pts.push(new THREE.Vector3(Math.cos(a + w * .1) * (S * 75 + co), t * bH + Math.sin(t * Math.PI) * S * 28, Math.sin(
+              a + w * .1) * (S * 75 + co)));
+          }
+          const bm = new THREE.Mesh(
+            new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 12, th, 7, false),
+            new THREE.MeshLambertMaterial({ map: bT, color: new THREE.Color(.27 + rng() * .07, .14 + rng() * .04, .05 +
+                rng() * .03) })
+          );
+          bm.castShadow = true;
+          G.add(bm);
+        }
 
-  // ── Camera orbit state ──
-  // Camera orbits a point in front of tree base (y=5 = mid-tree height)
-  const TARGET=new THREE.Vector3(0,5,0);  // look at mid-trunk
-  let camTheta=0;     // horizontal angle around tree (radians)
-  let camPhi=0.35;    // vertical angle (radians, 0=horizontal, π/2=top)
-  let camDist=22;     // distance from tree
-  const MIN_PHI=-0.1, MAX_PHI=1.2;
-  const MIN_DIST=6,   MAX_DIST=40;
+        // -- CABANG (Branching) --
+        const bEPs = [];
 
-  function updateCamera(){
-    // Spherical → Cartesian
-    const x=camDist*Math.cos(camPhi)*Math.sin(camTheta);
-    const y=camDist*Math.sin(camPhi);
-    const z=camDist*Math.cos(camPhi)*Math.cos(camTheta);
-    _camera.position.set(x,y+TARGET.y,z);
-    _camera.lookAt(TARGET);
-  }
-  updateCamera();
+        function addBr(sx, sy, sz, ex, ey, ez, r, layer) {
+          const m1x = THREE.MathUtils.lerp(sx, ex, .33) + (rng() - .5) * S * 32;
+          const m1y = THREE.MathUtils.lerp(sy, ey, .33) - S * 22 * layer + (rng() - .5) * S * 14;
+          const m1z = THREE.MathUtils.lerp(sz, ez, .33) + (rng() - .5) * S * 32;
+          const m2x = THREE.MathUtils.lerp(sx, ex, .67) + (rng() - .5) * S * 26;
+          const m2y = THREE.MathUtils.lerp(sy, ey, .67) - S * 36 * layer + (rng() - .5) * S * 10;
+          const m2z = THREE.MathUtils.lerp(sz, ez, .67) + (rng() - .5) * S * 26;
+          const cv = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(sx, sy, sz),
+            new THREE.Vector3(m1x, m1y, m1z),
+            new THREE.Vector3(m2x, m2y, m2z),
+            new THREE.Vector3(ex, ey, ez)
+          ]);
+          const br = layer === 0 ? .82 : layer === 1 ? .72 : .60;
+          const mesh = new THREE.Mesh(
+            new THREE.TubeGeometry(cv, layer < 2 ? 9 : 6, r, 6, false),
+            new THREE.MeshLambertMaterial({ map: bT, color: new THREE.Color(br, br * .82, br * .65) })
+          );
+          mesh.castShadow = true;
+          G.add(mesh);
+          bEPs.push({ pos: new THREE.Vector3(ex, ey, ez), layer });
+        }
+        const tp = tC.getPoint(1),
+          mp = tC.getPoint(.55);
+        addBr(tp.x, tp.y, tp.z, tp.x - S * 265, tp.y + S * 172, tp.z - S * 132, S * 21, 0);
+        addBr(tp.x, tp.y, tp.z, tp.x + S * 275, tp.y + S * 190, tp.z + S * 112, S * 21, 0);
+        addBr(tp.x, tp.y, tp.z, tp.x + S * 95, tp.y + S * 210, tp.z - S * 265, S * 19, 0);
+        addBr(tp.x, tp.y, tp.z, tp.x - S * 130, tp.y + S * 202, tp.z + S * 260, S * 18, 0);
+        addBr(tp.x, tp.y, tp.z, tp.x + S * 30, tp.y + S * 238, tp.z + S * 35, S * 17, 0);
+        addBr(mp.x, mp.y, mp.z, mp.x - S * 210, mp.y + S * 190, mp.z + S * 155, S * 15, 0);
+        addBr(mp.x, mp.y, mp.z, mp.x + S * 225, mp.y + S * 172, mp.z - S * 115, S * 14, 0);
+        const pS = bEPs.slice();
+        pS.forEach(ep => {
+          const n = 2 + Math.floor(rng() * 2);
+          for (let k = 0; k < n; k++) {
+            const sp = S * (148 + rng() * 138),
+              ax = rng() * Math.PI * 2;
+            addBr(ep.pos.x, ep.pos.y, ep.pos.z, ep.pos.x + Math.cos(ax) * sp, ep.pos.y + S * (102 + rng() * 115), ep.pos
+              .z + Math.sin(ax) * sp, S * (8 + rng() * 5), 1);
+          }
+        });
+        bEPs.filter(e => e.layer === 1).forEach(ep => {
+          if (rng() < .75) {
+            const sp = S * (92 + rng() * 105),
+              ax = rng() * Math.PI * 2;
+            addBr(ep.pos.x, ep.pos.y, ep.pos.z, ep.pos.x + Math.cos(ax) * sp, ep.pos.y + S * (85 + rng() * 88), ep.pos
+              .z + Math.sin(ax) * sp, S * (4.5 + rng() * 3), 2);
+          }
+        });
 
-  // ── Touch/mouse drag to orbit ──
-  let placed=false;
-  let dragging=false;
-  let lastX=0,lastY=0;
-  let lastDist2=0; // pinch distance
+        // -- DAUN (Leaves) --
+        function lGeo(lw, ll) {
+          const sh = new THREE.Shape(),
+            n = 12;
+          sh.moveTo(-ll * .5, 0);
+          for (let i = 1; i <= n; i++) {
+            const t = i / n,
+              x = (t - .5) * ll,
+              w = Math.pow(Math.sin(t * Math.PI), .75) * lw * .5,
+              cm = Math.sin(t * Math.PI) * .07 * ll;
+            sh.lineTo(x, w + cm);
+          }
+          for (let i = n - 1; i >= 0; i--) {
+            const t = i / n,
+              x = (t - .5) * ll,
+              w = Math.pow(Math.sin(t * Math.PI), .75) * lw * .5,
+              cm = Math.sin(t * Math.PI) * .07 * ll;
+            sh.lineTo(x, -w + cm);
+          }
+          sh.closePath();
+          return new THREE.ShapeGeometry(sh, 3);
+        }
 
-  const canvas=$('glc');
+        function spL(cx, cy, cz, rad, cnt) {
+          for (let i = 0; i < cnt; i++) {
+            const lw = S * (22 + rng() * 18),
+              ll = S * (45 + rng() * 49);
+            const lf = new THREE.Mesh(lGeo(lw, ll), lMs[i % lMs.length]);
+            const th = rng() * Math.PI * 2,
+              ph = (rng() - .5) * Math.PI * .75,
+              r = rng() * rad;
+            lf.position.set(cx + r * Math.cos(th) * Math.cos(ph), cy + r * Math.abs(Math.sin(ph)) * .5 + rng() * S * 20,
+              cz + r * Math.sin(th) * Math.cos(ph));
+            lf.rotation.set((rng() - .5) * 1.3 + .15, rng() * Math.PI * 2, (rng() - .5) * 1.2);
+            lf.castShadow = true;
+            G.add(lf);
+          }
+        }
+        bEPs.forEach(ep => {
+          if (ep.layer === 2) spL(ep.pos.x, ep.pos.y, ep.pos.z, S * 112, 15);
+          else if (ep.layer === 1) spL(ep.pos.x, ep.pos.y, ep.pos.z, S * 68, 6);
+          else spL(ep.pos.x, ep.pos.y, ep.pos.z, S * 40, 3);
+        });
+        for (let i = 0; i < 16; i++) {
+          const ep = bEPs[Math.floor(rng() * bEPs.length)];
+          spL(ep.pos.x + (rng() - .5) * S * 148, ep.pos.y + rng() * S * 110, ep.pos.z + (rng() - .5) * S * 148, S * 132,
+            11);
+        }
 
-  // Place tree on tap (before placement, tap places; after, drag orbits)
-  function doPlace(){
-    if(placed)return;
-    placed=true;
-    tree.visible=true;
-    $('btn-place').style.display='none';
-    $('xhair').style.display='none';
-    hint('Seret layar untuk melihat dari berbagai sudut');
-    toast('Pohon ditempatkan! Seret untuk eksplorasi 🌳',3000);
-  }
-  $('btn-place').onclick=doPlace;
+        // -- AKAR GANTUNG + BUAH ARA (Hanging roots & figs) --
+        const figG = new THREE.Group();
+        G.add(figG);
+        figG.visible = false; // default mati, diaktifkan oleh tombol "Berbuah"
 
-  // Touch events
-  canvas.addEventListener('touchstart',e=>{
-    e.preventDefault();
-    if(!placed){doPlace();return;}
-    if(e.touches.length===1){
-      dragging=true;
-      lastX=e.touches[0].clientX;
-      lastY=e.touches[0].clientY;
-    }else if(e.touches.length===2){
-      dragging=false;
-      lastDist2=Math.hypot(
-        e.touches[0].clientX-e.touches[1].clientX,
-        e.touches[0].clientY-e.touches[1].clientY
-      );
-    }
-  },{passive:false});
+        for (let i = 0; i < 72; i++) {
+          const t = .08 + rng() * .85,
+            ang = rng() * Math.PI * 2;
+          const pt = tC.getPoint(t),
+            tg = tC.getTangent(t).normalize();
+          const ri = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), tg).normalize();
+          if (ri.lengthSq() < .001) ri.set(1, 0, 0);
+          const fw = new THREE.Vector3().crossVectors(tg, ri).normalize();
+          const bR = S * THREE.MathUtils.lerp(112, 22, t) * 1.04;
+          const ox = pt.x + ri.x * Math.cos(ang) * bR + fw.x * Math.sin(ang) * bR;
+          const oy = pt.y;
+          const oz = pt.z + ri.z * Math.cos(ang) * bR + fw.z * Math.sin(ang) * bR;
+          const rG = rng() > .36,
+            mxL = pt.y,
+            len = rG ? mxL : mxL * (.26 + rng() * .54);
+          const swX = (rng() - .5) * S * 65,
+            swZ = (rng() - .5) * S * 65,
+            tw = (rng() - .5) * S * 20;
+          const nSg = 20,
+            pts = [];
+          for (let j = 0; j <= nSg; j++) {
+            const tR = j / nSg,
+              bow = Math.sin(tR * Math.PI) * .7,
+              d = tR * tR * .24,
+              wb = Math.sin(tR * Math.PI * 1.8 + i) * S * 5;
+            pts.push(new THREE.Vector3(ox + (bow + d) * swX + wb * .35, oy - tR * len, oz + (bow + d) * swZ + wb * .28 +
+              tw * tR));
+          }
+          const crv = new THREE.CatmullRomCurve3(pts);
+          const rTh = rG ? (S * (1.9 + rng() * 2.1)) : (S * (1.3 + rng() * 1.3));
+          const rm = new THREE.Mesh(
+            new THREE.TubeGeometry(crv, 20, rTh, 5, false),
+            new THREE.MeshLambertMaterial({ map: rT, color: new THREE.Color(.24 + rng() * .08, .13 + rng() * .05, .04 +
+                rng() * .03) })
+          );
+          rm.castShadow = true;
+          G.add(rm);
+          const nFP = Math.floor(2 + len / S * .0065);
+          for (let j = 0; j < nFP; j++) {
+            if (rng() < .77) {
+              const fp = crv.getPoint(.06 + rng() * .88);
+              const fa = rng() * Math.PI * 2,
+                fo = S * (3.5 + rng() * 3);
+              sFig(figG, fp.x + Math.cos(fa) * fo, fp.y, fp.z + Math.sin(fa) * fo, 2 + Math.floor(rng() * 3));
+            }
+          }
+        }
+        for (let i = 0; i < 9; i++) {
+          const t = .05 + rng() * .88,
+            a = rng() * Math.PI * 2;
+          const pt = tC.getPoint(t),
+            tg = tC.getTangent(t).normalize();
+          const ri = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), tg).normalize();
+          if (ri.lengthSq() < .001) ri.set(1, 0, 0);
+          const fw = new THREE.Vector3().crossVectors(tg, ri).normalize();
+          const bR = S * THREE.MathUtils.lerp(112, 22, t) * 1.07;
+          sFig(figG, pt.x + ri.x * Math.cos(a) * bR + fw.x * Math.sin(a) * bR, pt.y, pt.z + ri.z * Math.cos(a) * bR + fw
+            .z * Math.sin(a) * bR, 3 + Math.floor(rng() * 3));
+        }
 
-  canvas.addEventListener('touchmove',e=>{
-    e.preventDefault();
-    if(!placed)return;
-    if(e.touches.length===1&&dragging){
-      const dx=e.touches[0].clientX-lastX;
-      const dy=e.touches[0].clientY-lastY;
-      camTheta-=dx*.005;
-      camPhi  +=dy*.004;
-      camPhi=Math.max(MIN_PHI,Math.min(MAX_PHI,camPhi));
-      lastX=e.touches[0].clientX;
-      lastY=e.touches[0].clientY;
-      updateCamera();
-    }else if(e.touches.length===2){
-      const d=Math.hypot(
-        e.touches[0].clientX-e.touches[1].clientX,
-        e.touches[0].clientY-e.touches[1].clientY
-      );
-      camDist-=(d-lastDist2)*.05;
-      camDist=Math.max(MIN_DIST,Math.min(MAX_DIST,camDist));
-      lastDist2=d;
-      updateCamera();
-    }
-  },{passive:false});
+        // Simpan referensi group buah untuk toggle
+        G.userData.figGroup = figG;
+        G.userData.leafMats = lMs;
+        return G;
+      }
 
-  canvas.addEventListener('touchend',()=>{dragging=false;},{passive:true});
+      // ─────────────────────────────────────────────────────────────
+      // 4. GLOBAL STATE
+      // ─────────────────────────────────────────────────────────────
 
-  // Mouse for desktop testing
-  canvas.addEventListener('mousedown',e=>{if(!placed){doPlace();return;}dragging=true;lastX=e.clientX;lastY=e.clientY;});
-  canvas.addEventListener('mousemove',e=>{
-    if(!dragging||!placed)return;
-    camTheta-=(e.clientX-lastX)*.005;
-    camPhi  +=(e.clientY-lastY)*.004;
-    camPhi=Math.max(MIN_PHI,Math.min(MAX_PHI,camPhi));
-    lastX=e.clientX;lastY=e.clientY;
-    updateCamera();
-  });
-  canvas.addEventListener('mouseup',()=>{dragging=false;});
-  canvas.addEventListener('wheel',e=>{
-    camDist+=e.deltaY*.05;camDist=Math.max(MIN_DIST,Math.min(MAX_DIST,camDist));updateCamera();
-  },{passive:true});
+      let _renderer = null,
+        _scene = null,
+        _camera = null;
+      let _proto = null,
+        _bT, _gT, _fT, _rT;
+      let _scale = 1,
+        _extraRotY = 0,
+        _fruit = false;
+      let _raf = null;
 
-  // Controls
-  bindControls(()=>tree);
-  // Override rotate to orbit
-  $('c-rt').onclick=()=>{camTheta+=Math.PI/4;updateCamera();};
+      // ─────────────────────────────────────────────────────────────
+      // 5. RENDERER & SCENE
+      // ─────────────────────────────────────────────────────────────
 
-  let time=0;
-  function loop(){
-    _raf=requestAnimationFrame(loop);
-    time+=.01;
-    animTree(tree,time);
-    _renderer.render(_scene,_camera);
-  }
-  loop();
-}
+      function initRenderer(alpha, xr = false) {
+        if (_renderer) { try { _renderer.dispose(); } catch (e) {} }
+        _renderer = null;
+        const cv = $('glc');
+        _renderer = new THREE.WebGLRenderer({
+          canvas: cv,
+          antialias: true,
+          alpha: alpha,
+          premultipliedAlpha: false
+        });
+        _renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+        _renderer.setSize(innerWidth, innerHeight);
+        _renderer.shadowMap.enabled = true;
+        _renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        _renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        _renderer.toneMappingExposure = 1.2;
 
-// ─────────────────────────────────────────────
-// MODE B — 3D VIEWER
-// ─────────────────────────────────────────────
-function start3D(){
-  initRenderer(false);
-  $('glc').style.display='block';
-  showF('hud');
-  $('hud-mode').textContent='3D Viewer';
-  $('btn-place').style.display='none';
-  hint('Seret untuk memutar · Pinch untuk zoom');
+        // Aktifkan XR jika mode AR
+        _renderer.xr.enabled = xr;
 
-  ensureTree();
-  const tree=cloneTree();
-  _scene.add(tree);
-  bindControls(()=>tree);
+        if (alpha) {
+          _renderer.setClearColor(0x000000, 0);
+        } else {
+          _renderer.setClearColor(0x05100a, 1);
+        }
 
-  // Orbit camera (same logic, no video)
-  const TARGET=new THREE.Vector3(0,5,0);
-  let camTheta=0,camPhi=.35,camDist=22;
-  const MIN_PHI=-.1,MAX_PHI=1.3,MIN_DIST=6,MAX_DIST=40;
+        _scene = new THREE.Scene();
+        if (!alpha) {
+          _scene.background = new THREE.Color(0x05100a);
+          _scene.fog = new THREE.Fog(0x05100a, 22, 68);
+        }
 
-  function updateCam(){
-    const x=camDist*Math.cos(camPhi)*Math.sin(camTheta);
-    const y=camDist*Math.sin(camPhi);
-    const z=camDist*Math.cos(camPhi)*Math.cos(camTheta);
-    _camera.position.set(x,y+TARGET.y,z);
-    _camera.lookAt(TARGET);
-  }
-  updateCam();
+        // Pencahayaan
+        _scene.add(new THREE.AmbientLight(0x3a5a3a, 1.0));
+        const sun = new THREE.DirectionalLight(0xfff5d8, 2.5);
+        sun.position.set(7, 16, 8);
+        sun.castShadow = true;
+        sun.shadow.mapSize.set(512, 512);
+        sun.shadow.bias = - .001;
+        _scene.add(sun);
+        const fill = new THREE.DirectionalLight(0x507a60, 0.7);
+        fill.position.set(-6, 4, -5);
+        _scene.add(fill);
+        _scene.add(new THREE.HemisphereLight(0x448844, 0x2a1a0a, .5));
 
-  let dragging=false,lastX=0,lastY=0,lastD=0;
-  const cv=$('glc');
-  let autoR=true;
+        _camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, .01, 200);
+        window.addEventListener('resize', _rsz);
+      }
 
-  cv.addEventListener('mousedown',e=>{autoR=false;dragging=true;lastX=e.clientX;lastY=e.clientY;});
-  cv.addEventListener('mousemove',e=>{
-    if(!dragging)return;
-    camTheta-=(e.clientX-lastX)*.005;camPhi+=(e.clientY-lastY)*.004;
-    camPhi=Math.max(MIN_PHI,Math.min(MAX_PHI,camPhi));lastX=e.clientX;lastY=e.clientY;updateCam();
-  });
-  cv.addEventListener('mouseup',()=>dragging=false);
-  cv.addEventListener('wheel',e=>{camDist+=e.deltaY*.05;camDist=Math.max(MIN_DIST,Math.min(MAX_DIST,camDist));updateCam();},{passive:true});
+      function _rsz() {
+        if (!_renderer || !_camera) return;
+        _renderer.setSize(innerWidth, innerHeight);
+        _camera.aspect = innerWidth / innerHeight;
+        _camera.updateProjectionMatrix();
+      }
 
-  cv.addEventListener('touchstart',e=>{
-    autoR=false;
-    if(e.touches.length===1){dragging=true;lastX=e.touches[0].clientX;lastY=e.touches[0].clientY;}
-    else if(e.touches.length===2){dragging=false;lastD=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);}
-  },{passive:true});
-  cv.addEventListener('touchmove',e=>{
-    if(e.touches.length===1&&dragging){camTheta-=(e.touches[0].clientX-lastX)*.005;camPhi+=(e.touches[0].clientY-lastY)*.004;camPhi=Math.max(MIN_PHI,Math.min(MAX_PHI,camPhi));lastX=e.touches[0].clientX;lastY=e.touches[0].clientY;updateCam();}
-    else if(e.touches.length===2){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);camDist-=(d-lastD)*.05;camDist=Math.max(MIN_DIST,Math.min(MAX_DIST,camDist));lastD=d;updateCam();}
-  },{passive:true});
-  cv.addEventListener('touchend',()=>dragging=false,{passive:true});
+      // ─────────────────────────────────────────────────────────────
+      // 6. PERSIAPAN POHON (dipanggil sekali saat loading)
+      // ─────────────────────────────────────────────────────────────
 
-  $('c-rt').onclick=()=>{camTheta+=Math.PI/4;updateCam();};
+      function ensureTree() {
+        if (_proto) return;
+        setMsg('Membuat tekstur...');
+        _bT = mkBark();
+        _gT = mkGnd();
+        _fT = mkFig();
+        _rT = mkRoot();
+        setMsg('Membangun pohon...');
+        _proto = buildTree(_bT, _gT, _fT, _rT);
+        setMsg('Siap!');
+      }
 
-  let time=0;
-  function loop(){
-    _raf=requestAnimationFrame(loop);time+=.01;
-    if(autoR){camTheta+=.003;updateCam();}
-    animTree(tree,time);
-    _renderer.render(_scene,_camera);
-  }
-  loop();
-}
+      function cloneTree() {
+        const t = _proto.clone(true);
+        t.userData.figGroup = null;
+        t.traverse(o => {
+          if (o.isGroup && o !== t && !t.userData.figGroup) t.userData.figGroup = o;
+        });
+        t.userData.leafMats = _proto.userData.leafMats;
+        return t;
+      }
 
-// ─────────────────────────────────────────────
-// INIT
-// ─────────────────────────────────────────────
-(async()=>{
-  await new Promise(r=>setTimeout(r,80));
-  ensureTree();
+      // Animasi daun & akar (gemerisik)
+      function animTree(tree, time) {
+        if (!tree._lv) {
+          tree._lv = [];
+          tree._li = [];
+          tree._rv = [];
+          tree.traverse(o => {
+            if (!o.isMesh) return;
+            if (o.material && o.material.side === THREE.DoubleSide) {
+              tree._lv.push(o);
+              tree._li.push({ rx: o.rotation.x, rz: o.rotation.z });
+            } else tree._rv.push(o);
+          });
+        }
+        for (let i = 0; i < tree._lv.length; i += 4) {
+          const ir = tree._li[i] || { rx: 0, rz: 0 };
+          tree._lv[i].rotation.x = ir.rx + Math.sin(time * .62 + i * .18) * .034;
+          tree._lv[i].rotation.z = ir.rz + Math.cos(time * .47 + i * .23) * .026;
+        }
+        for (let i = 0; i < tree._rv.length; i++)
+          tree._rv[i].rotation.z = Math.sin(time * (.22 + i * .008) + i * .618) * .013;
+      }
 
-  const camOk=!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia);
-  if(!camOk){
-    $('mb-ar').classList.add('off');
-    $('mb-ar').querySelector('.md').textContent='Browser ini tidak mendukung akses kamera.';
-  }
+      // ─────────────────────────────────────────────────────────────
+      // 7. KONTROL TOMBOL (skala, rotasi, buah)
+      // ─────────────────────────────────────────────────────────────
 
-  await new Promise(r=>setTimeout(r,900));
-  $('scr-load').style.opacity='0';
-  await new Promise(r=>setTimeout(r,480));
-  $('scr-load').style.display='none';
-  showF('scr-home');
+      function setupControls(getTree, mode) {
+        // Hapus listener lama (pakai onclick assignment ulang)
+        $('c-sm').onclick = () => {
+          _scale = Math.max(0.15, _scale * 0.78);
+          const t = getTree();
+          if (t) t.scale.setScalar(_scale);
+          toast('Skala: ' + Math.round(_scale * 100) + '%');
+        };
+        $('c-lg').onclick = () => {
+          _scale = Math.min(4, _scale * 1.28);
+          const t = getTree();
+          if (t) t.scale.setScalar(_scale);
+          toast('Skala: ' + Math.round(_scale * 100) + '%');
+        };
+        $('c-rt').onclick = () => {
+          _extraRotY += Math.PI / 4;
+          const t = getTree();
+          if (t) t.rotation.y = _extraRotY;
+          toast('Putar 45°');
+        };
+        $('c-fr').onclick = function() {
+          _fruit = !_fruit;
+          this.classList.toggle('on', _fruit);
+          const t = getTree();
+          if (!t) return;
+          const fg = t.userData.figGroup;
+          if (fg) fg.visible = _fruit;
+          const lm = t.userData.leafMats;
+          if (lm) {
+            const h = _fruit ? .27 : .265,
+              s = _fruit ? .58 : .55,
+              l = _fruit ? .15 : .18;
+            lm.forEach((m, i) => m.color.setHSL(h + i * .013, s, l + (i % 3) * .03));
+          }
+          toast(_fruit ? '🌰 Mode Berbuah Aktif' : '🌿 Mode Normal');
+        };
+      }
 
-  $('mb-ar').onclick=()=>{hideEl('scr-home');startAR();};
-  $('mb-3d').onclick=()=>{hideEl('scr-home');start3D();};
-})();
+      // ─────────────────────────────────────────────────────────────
+      // 8. CLEANUP & ERROR
+      // ─────────────────────────────────────────────────────────────
 
-})();
-</script>
+      function cleanup() {
+        window.removeEventListener('resize', _rsz);
+        if (_raf) { cancelAnimationFrame(_raf);
+          _raf = null; }
+        if (_renderer) {
+          // Hentikan loop XR jika ada
+          _renderer.setAnimationLoop(null);
+          _renderer.xr.enabled = false;
+          // Tutup sesi XR jika ada
+          if (_renderer.xr.getSession()) {
+            try { _renderer.xr.getSession().end(); } catch (e) {}
+          }
+          _renderer.dispose();
+        }
+        $('glc').style.display = 'none';
+        $('xhair').style.display = 'none';
+        $('btn-place').style.display = 'none';
+        $('c-fr').classList.remove('on');
+        _fruit = false;
+        _scale = 1;
+        _extraRotY = 0;
+        hideEl('hud');
+        _renderer = null;
+        _scene = null;
+        _camera = null;
+      }
+
+      function showErr(title, msg) {
+        cleanup();
+        $('err-title').textContent = title;
+        $('err-msg').textContent = msg;
+        showF('scr-err');
+      }
+
+      // Tombol navigasi error
+      $('btn-exit').onclick = () => { cleanup();
+        showF('scr-home'); };
+      $('err-back').onclick = () => { hideEl('scr-err');
+        showF('scr-home'); };
+      $('err-3d').onclick = () => { hideEl('scr-err');
+        start3D(); };
+
+      // ─────────────────────────────────────────────────────────────
+      // 9. MODE A — AR NYATA (WebXR)
+      // ─────────────────────────────────────────────────────────────
+
+      async function startAR() {
+        // Cek dukungan WebXR
+        if (!navigator.xr) {
+          showErr('WebXR Tidak Didukung', 'Browser Anda tidak mendukung WebXR. Gunakan Chrome di Android dengan ARCore terpasang.');
+          return;
+        }
+
+        // Siapkan renderer transparan dengan XR diaktifkan
+        initRenderer(true, true);
+        $('glc').style.display = 'block';
+        showF('hud');
+        $('hud-mode').textContent = 'AR Nyata (WebXR)';
+        $('btn-place').style.display = 'none'; // penempatan via tap layar
+        $('xhair').style.display = 'block';
+        hint('Gerakkan ponsel untuk mendeteksi lantai...');
+
+        ensureTree();
+        const tree = cloneTree();
+        tree.scale.setScalar(_scale);
+        tree.visible = false; // belum ditempatkan
+        _scene.add(tree);
+
+        // Variabel untuk WebXR
+        let hitTestSource = null;
+        let lastHitPose = null;
+        let placed = false;
+        let session = null;
+
+        try {
+          // Minta sesi AR dengan fitur hit-test
+          session = await navigator.xr.requestSession('immersive-ar', {
+            requiredFeatures: ['hit-test'],
+            optionalFeatures: ['dom-overlay'],
+            domOverlay: { root: document.body }
+          });
+        } catch (err) {
+          showErr('Gagal memulai AR', err.message + '. Pastikan ARCore terinstal dan izinkan akses kamera.');
+          return;
+        }
+
+        // Set sesi ke renderer Three.js
+        _renderer.xr.setSession(session);
+
+        // Buat hit-test source
+        try {
+          hitTestSource = await session.requestHitTestSource({
+            space: session.viewerSpace
+          });
+        } catch (err) {
+          showErr('Hit-test gagal', 'Perangkat tidak mendukung deteksi permukaan: ' + err.message);
+          return;
+        }
+
+        // Tombol exit untuk menghentikan sesi
+        $('btn-exit').onclick = () => {
+          if (session) {
+            session.end();
+          }
+          cleanup();
+          showF('scr-home');
+        };
+
+        // Set loop renderer
+        _renderer.setAnimationLoop((time, frame) => {
+          if (!frame) return;
+
+          // Dapatkan pose viewer
+          const viewerPose = frame.getViewerPose(_renderer.xr.getReferenceSpace());
+          if (!viewerPose) return;
+
+          // Jika pohon belum ditempatkan, lakukan hit-test
+          if (!placed && hitTestSource) {
+            const hitResults = frame.getHitTestResults(hitTestSource);
+            if (hitResults.length > 0) {
+              const hit = hitResults[0];
+              const transform = hit.getPose(_renderer.xr.getReferenceSpace()).transform;
+              lastHitPose = transform;
+              hint('Tap layar untuk menaruh pohon di sini');
+            } else {
+              hint('Gerakkan ponsel perlahan untuk mencari lantai...');
+            }
+          }
+
+          // Jika sudah ditempatkan, animasikan pohon
+          if (placed && tree.visible) {
+            animTree(tree, time * 0.001);
+          }
+
+          // Render scene
+          _renderer.render(_scene, _camera);
+        });
+
+        // ── EVENT TAP UNTUK MENEMPATKAN POHON ──
+        const canvas = $('glc');
+
+        function placeTreeAtPose() {
+          if (placed || !lastHitPose) {
+            if (!lastHitPose) toast('Belum ada permukaan terdeteksi.');
+            return;
+          }
+          const pos = new THREE.Vector3(
+            lastHitPose.position.x,
+            lastHitPose.position.y,
+            lastHitPose.position.z
+          );
+          tree.position.copy(pos);
+          tree.position.y += 0.01; // naikkan sedikit agar akar menyentuh lantai
+          tree.visible = true;
+          placed = true;
+          $('xhair').style.display = 'none';
+          hint('Pohon ditempatkan! Anda bisa berjalan mengelilinginya.');
+          toast('🌳 Pohon muncul di lantai!');
+        }
+
+        canvas.addEventListener('click', placeTreeAtPose);
+        canvas.addEventListener('touchstart', (e) => {
+          // Mencegah scroll dan memicu tap
+          e.preventDefault();
+          placeTreeAtPose();
+        }, { passive: false });
+
+        // Setup tombol kontrol (skala, rotasi, buah) — mengacu ke tree
+        setupControls(() => tree, 'ar');
+
+        // Override tombol putar agar langsung memutar pohon (bukan kamera)
+        $('c-rt').onclick = () => {
+          _extraRotY += Math.PI / 4;
+          tree.rotation.y = _extraRotY;
+          toast('Putar 45°');
+        };
+
+        // Simpan sesi untuk cleanup
+        window._arSession = session;
+      }
+
+      // ─────────────────────────────────────────────────────────────
+      // 10. MODE B — 3D VIEWER (Fallback / desktop)
+      // ─────────────────────────────────────────────────────────────
+
+      function start3D() {
+        initRenderer(false, false);
+        $('glc').style.display = 'block';
+        showF('hud');
+        $('hud-mode').textContent = '3D Viewer';
+        $('btn-place').style.display = 'none';
+        hint('Seret untuk memutar · Pinch untuk zoom');
+
+        ensureTree();
+        const tree = cloneTree();
+        tree.scale.setScalar(_scale);
+        _scene.add(tree);
+
+        // Orbit camera (sama seperti kode asli, tapi pakai tree sebagai acuan)
+        const TARGET = new THREE.Vector3(0, 5, 0);
+        let camTheta = 0,
+          camPhi = .35,
+          camDist = 22;
+        const MIN_PHI = - .1,
+          MAX_PHI = 1.3,
+          MIN_DIST = 6,
+          MAX_DIST = 40;
+
+        function updateCam() {
+          const x = camDist * Math.cos(camPhi) * Math.sin(camTheta);
+          const y = camDist * Math.sin(camPhi);
+          const z = camDist * Math.cos(camPhi) * Math.cos(camTheta);
+          _camera.position.set(x, y + TARGET.y, z);
+          _camera.lookAt(TARGET);
+        }
+        updateCam();
+
+        let dragging = false,
+          lastX = 0,
+          lastY = 0,
+          lastD = 0;
+        const cv = $('glc');
+        let autoR = true;
+
+        cv.addEventListener('mousedown', e => { autoR = false;
+          dragging = true;
+          lastX = e.clientX;
+          lastY = e.clientY; });
+        cv.addEventListener('mousemove', e => {
+          if (!dragging) return;
+          camTheta -= (e.clientX - lastX) * .005;
+          camPhi += (e.clientY - lastY) * .004;
+          camPhi = Math.max(MIN_PHI, Math.min(MAX_PHI, camPhi));
+          lastX = e.clientX;
+          lastY = e.clientY;
+          updateCam();
+        });
+        cv.addEventListener('mouseup', () => dragging = false);
+        cv.addEventListener('wheel', e => { camDist += e.deltaY * .05;
+          camDist = Math.max(MIN_DIST, Math.min(MAX_DIST, camDist));
+          updateCam(); }, { passive: true });
+
+        cv.addEventListener('touchstart', e => {
+          autoR = false;
+          if (e.touches.length === 1) { dragging = true;
+            lastX = e.touches[0].clientX;
+            lastY = e.touches[0].clientY; } else if (e.touches.length === 2) { dragging = false;
+            lastD = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1]
+            .clientY); }
+        }, { passive: true });
+        cv.addEventListener('touchmove', e => {
+          if (e.touches.length === 1 && dragging) {
+            camTheta -= (e.touches[0].clientX - lastX) * .005;
+            camPhi += (e.touches[0].clientY - lastY) * .004;
+            camPhi = Math.max(MIN_PHI, Math.min(MAX_PHI, camPhi));
+            lastX = e.touches[0].clientX;
+            lastY = e.touches[0].clientY;
+            updateCam();
+          } else if (e.touches.length === 2) {
+            const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1]
+              .clientY);
+            camDist -= (d - lastD) * .05;
+            camDist = Math.max(MIN_DIST, Math.min(MAX_DIST, camDist));
+            lastD = d;
+            updateCam();
+          }
+        }, { passive: true });
+        cv.addEventListener('touchend', () => dragging = false, { passive: true });
+
+        // Setup kontrol (skala, rotasi, buah)
+        setupControls(() => tree, '3d');
+
+        // Override tombol rotasi untuk 3D viewer: putar kamera
+        $('c-rt').onclick = () => {
+          camTheta += Math.PI / 4;
+          updateCam();
+          toast('Putar 45°');
+        };
+
+        let time = 0;
+
+        function loop() {
+          _raf = requestAnimationFrame(loop);
+          time += .01;
+          if (autoR) { camTheta += .003;
+            updateCam(); }
+          animTree(tree, time);
+          _renderer.render(_scene, _camera);
+        }
+        loop();
+      }
+
+      // ─────────────────────────────────────────────────────────────
+      // 11. INISIALISASI APLIKASI
+      // ─────────────────────────────────────────────────────────────
+
+      (async () => {
+        await new Promise(r => setTimeout(r, 80));
+        ensureTree();
+
+        // Cek dukungan WebXR untuk menonaktifkan tombol AR jika tidak ada
+        const xrOk = !!(navigator.xr);
+        if (!xrOk) {
+          $('mb-ar').classList.add('off');
+          $('mb-ar').querySelector('.md').textContent = 'WebXR tidak didukung. Gunakan Chrome Android + ARCore.';
+        }
+
+        await new Promise(r => setTimeout(r, 900));
+        $('scr-load').style.opacity = '0';
+        await new Promise(r => setTimeout(r, 480));
+        $('scr-load').style.display = 'none';
+        showF('scr-home');
+
+        // Event listener menu
+        $('mb-ar').onclick = () => {
+          if ($('mb-ar').classList.contains('off')) {
+            toast('Perangkat tidak mendukung WebXR AR.');
+            return;
+          }
+          hideEl('scr-home');
+          startAR();
+        };
+        $('mb-3d').onclick = () => {
+          hideEl('scr-home');
+          start3D();
+        };
+      })();
+
+    })();
+  </script>
 </body>
 </html>
