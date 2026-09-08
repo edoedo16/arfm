@@ -4,11 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <title>Ficus minahasae — AR & 3D</title>
+  <title>Ficus minahasae — AR</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js">
   </script>
   <style>
-    /* --- RESET & LAYAR PENUH --- */
+    /* --- RESET & FULLSCREEN --- */
     * {
       margin: 0;
       padding: 0;
@@ -25,7 +25,7 @@
       touch-action: none;
     }
 
-    /* Canvas Three.js — selalu di atas, transparan untuk AR */
+    /* Canvas Three.js selalu di atas (transparan untuk AR) */
     #glc {
       position: fixed;
       inset: 0;
@@ -171,7 +171,7 @@
       color: #4caf6e;
     }
 
-    /* --- HUD (Tombol & Informasi) --- */
+    /* --- HUD (Kontrol & Informasi) --- */
     #hud {
       position: fixed;
       inset: 0;
@@ -204,6 +204,15 @@
       letter-spacing: 1px;
       text-transform: uppercase;
       color: #4caf6e;
+    }
+    #hud-mode-badge {
+      background: rgba(76, 175, 110, .2);
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 9px;
+      color: #4caf6e;
+      border: 1px solid rgba(76, 175, 110, .4);
+      margin-left: 4px;
     }
     #btn-exit {
       margin-left: auto;
@@ -266,7 +275,7 @@
       color: #e8f5e9;
     }
 
-    /* Crosshair — indikator posisi pohon akan muncul */
+    /* Crosshair untuk AR (WebXR) */
     #xhair {
       display: none;
       position: fixed;
@@ -277,7 +286,7 @@
       z-index: 8;
     }
 
-    /* Toast notifikasi kecil */
+    /* Toast notifikasi */
     #toast {
       position: fixed;
       bottom: 150px;
@@ -350,7 +359,7 @@
 </head>
 <body>
 
-  <!-- Canvas utama untuk Three.js -->
+  <!-- Canvas Three.js -->
   <canvas id="glc"></canvas>
 
   <!-- LOADING -->
@@ -362,24 +371,22 @@
     <div id="lmsg">Memuat model...</div>
   </div>
 
-  <!-- HOME (MENU UTAMA) -->
+  <!-- HOME -->
   <div id="scr-home">
     <div class="h1">Botanika AR</div>
     <div class="h2">Ficus minahasae</div>
     <div class="h3">Lihat pohon Beringin Minahasa seolah berada di depanmu</div>
     <div class="mlist">
 
-      <!-- Tombol AR (WebXR atau fallback) -->
       <div class="mb" id="mb-ar">
         <div class="mi">📷</div>
         <div>
           <div class="mt">AR Kamera</div>
-          <div class="md">Coba AR dengan deteksi permukaan (jika support), atau simulasi dengan kamera.</div>
-          <span class="mk">Android + ARCore atau fallback kamera</span>
+          <div class="md">Coba AR nyata (WebXR) jika perangkat mendukung, atau simulasi dengan kamera.</div>
+          <span class="mk" id="ar-badge">Otomatis deteksi</span>
         </div>
       </div>
 
-      <!-- Tombol 3D Viewer (fallback) -->
       <div class="mb" id="mb-3d">
         <div class="mi">🌳</div>
         <div>
@@ -392,13 +399,13 @@
     </div>
   </div>
 
-  <!-- HUD (Overlay kontrol) -->
+  <!-- HUD -->
   <div id="hud">
     <div id="hud-top">
       <span style="font-size:20px;">🌳</span>
       <div>
         <div class="hn">Ficus minahasae</div>
-        <div class="hm" id="hud-mode">AR Kamera</div>
+        <div class="hm" id="hud-mode">Mode <span id="hud-mode-badge">Loading</span></div>
       </div>
       <button id="btn-exit">✕ Keluar</button>
     </div>
@@ -462,7 +469,7 @@
         _tt = setTimeout(() => e.classList.remove('show'), d);
       }
 
-      // Seeded RNG agar bentuk pohon selalu konsisten (deterministik)
+      // Seeded RNG
       let _s = 42;
 
       function rng() {
@@ -470,7 +477,7 @@
         return (_s >>> 0) / 0xffffffff;
       }
 
-      // FBM noise untuk tekstur procedural
+      // FBM noise
       function h2(x, y) { return (Math.sin(x * 127.1 + y * 311.7) * 43758.5453) % 1; }
 
       function sn(x, y) {
@@ -497,7 +504,7 @@
       }
 
       // ─────────────────────────────────────────────────────────────
-      // 2. TEKSTUR PROCEDURAL (Canvas 2D)
+      // 2. TEKSTUR PROCEDURAL
       // ─────────────────────────────────────────────────────────────
 
       function mkBark() {
@@ -602,12 +609,12 @@
       }
 
       // ─────────────────────────────────────────────────────────────
-      // 3. MEMBANGUN POHON (Procedural 3D)
+      // 3. MEMBANGUN POHON (procedural)
       // ─────────────────────────────────────────────────────────────
 
       function buildTree(bT, gT, fT, rT) {
         const G = new THREE.Group();
-        const S = 0.013; // skala global
+        const S = 0.013;
 
         const bM = new THREE.MeshLambertMaterial({ map: bT });
         const stM = new THREE.MeshLambertMaterial({ color: 0x140a02 });
@@ -628,7 +635,6 @@
           }));
         }
 
-        // Geometri buah ara (fig)
         function mkFG(r) {
           const pts = [];
           for (let i = 0; i <= 10; i++) {
@@ -659,13 +665,13 @@
             17);
         }
 
-        // -- Ground (cakram tanah) --
+        // Ground
         const gd = new THREE.Mesh(new THREE.CircleGeometry(S * 120, 44), gM);
         gd.rotation.x = -Math.PI / 2;
         gd.receiveShadow = true;
         G.add(gd);
 
-        // -- Akar permukaan (surface roots) --
+        // Surface roots
         for (let i = 0; i < 9; i++) {
           const a = rng() * Math.PI * 2,
             len = S * (75 + rng() * 165);
@@ -686,7 +692,7 @@
           G.add(sr);
         }
 
-        // -- Buah ara jatuh di bawah pohon --
+        // Fallen figs
         for (let i = 0; i < 12; i++) {
           const a = rng() * Math.PI * 2,
             r = S * (30 + rng() * 200);
@@ -696,7 +702,7 @@
           G.add(ff);
         }
 
-        // -- BATANG UTAMA (spine melengkung) --
+        // Trunk spine
         const SP = [
           new THREE.Vector3(0, 0, 0),
           new THREE.Vector3(S * 22, S * 115, S * 10),
@@ -757,7 +763,7 @@
         tM.receiveShadow = true;
         G.add(tM);
 
-        // -- Bonggol / tonjolan batang (knots) --
+        // Knots
         for (let i = 0; i < 5; i++) {
           const t = .1 + rng() * .7,
             pt = tC.getPoint(t),
@@ -772,7 +778,7 @@
           G.add(km);
         }
 
-        // -- AKAR BANIR (Buttress roots) --
+        // Buttress roots
         for (let i = 0; i < 8; i++) {
           const a = rng() * Math.PI * 2,
             bH = S * (140 + rng() * 190),
@@ -795,7 +801,7 @@
           G.add(bm);
         }
 
-        // -- CABANG (Branching) --
+        // Branches
         const bEPs = [];
 
         function addBr(sx, sy, sz, ex, ey, ez, r, layer) {
@@ -848,7 +854,7 @@
           }
         });
 
-        // -- DAUN (Leaves) --
+        // Leaves
         function lGeo(lw, ll) {
           const sh = new THREE.Shape(),
             n = 12;
@@ -897,10 +903,10 @@
             11);
         }
 
-        // -- AKAR GANTUNG + BUAH ARA (Hanging roots & figs) --
+        // Hanging roots + figs
         const figG = new THREE.Group();
         G.add(figG);
-        figG.visible = false; // default mati, diaktifkan oleh tombol "Berbuah"
+        figG.visible = false;
 
         for (let i = 0; i < 72; i++) {
           const t = .08 + rng() * .85,
@@ -962,7 +968,6 @@
             .z * Math.sin(a) * bR, 3 + Math.floor(rng() * 3));
         }
 
-        // Simpan referensi group buah untuk toggle
         G.userData.figGroup = figG;
         G.userData.leafMats = lMs;
         return G;
@@ -981,7 +986,7 @@
         _extraRotY = 0,
         _fruit = false;
       let _raf = null;
-      let _currentMode = 'home'; // 'home', 'ar', 'simulasi', '3d'
+      let _currentMode = '';
 
       // ─────────────────────────────────────────────────────────────
       // 5. RENDERER & SCENE
@@ -1003,8 +1008,6 @@
         _renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         _renderer.toneMapping = THREE.ACESFilmicToneMapping;
         _renderer.toneMappingExposure = 1.2;
-
-        // Aktifkan XR jika mode AR
         _renderer.xr.enabled = xr;
 
         if (alpha) {
@@ -1019,7 +1022,6 @@
           _scene.fog = new THREE.Fog(0x05100a, 22, 68);
         }
 
-        // Pencahayaan
         _scene.add(new THREE.AmbientLight(0x3a5a3a, 1.0));
         const sun = new THREE.DirectionalLight(0xfff5d8, 2.5);
         sun.position.set(7, 16, 8);
@@ -1044,7 +1046,7 @@
       }
 
       // ─────────────────────────────────────────────────────────────
-      // 6. PERSIAPAN POHON (dipanggil sekali saat loading)
+      // 6. PERSIAPAN POHON
       // ─────────────────────────────────────────────────────────────
 
       function ensureTree() {
@@ -1069,7 +1071,6 @@
         return t;
       }
 
-      // Animasi daun & akar (gemerisik)
       function animTree(tree, time) {
         if (!tree._lv) {
           tree._lv = [];
@@ -1096,8 +1097,7 @@
       // 7. KONTROL TOMBOL (skala, rotasi, buah)
       // ─────────────────────────────────────────────────────────────
 
-      function setupControls(getTree, mode) {
-        // Hapus listener lama (pakai onclick assignment ulang)
+      function setupControls(getTree) {
         $('c-sm').onclick = () => {
           _scale = Math.max(0.15, _scale * 0.78);
           const t = getTree();
@@ -1138,15 +1138,13 @@
       // 8. CLEANUP & ERROR
       // ─────────────────────────────────────────────────────────────
 
-      function cleanup(keepVideo = false) {
+      function cleanup() {
         window.removeEventListener('resize', _rsz);
         if (_raf) { cancelAnimationFrame(_raf);
           _raf = null; }
         if (_renderer) {
-          // Hentikan loop XR jika ada
           _renderer.setAnimationLoop(null);
           _renderer.xr.enabled = false;
-          // Tutup sesi XR jika ada
           if (_renderer.xr.getSession()) {
             try { _renderer.xr.getSession().end(); } catch (e) {}
           }
@@ -1162,17 +1160,7 @@
         _renderer = null;
         _scene = null;
         _camera = null;
-
-        // Hapus video jika ada (kecuali diminta tetap)
-        if (!keepVideo) {
-          const vid = document.querySelector('video[data-ar-sim]');
-          if (vid) {
-            if (vid.srcObject) {
-              vid.srcObject.getTracks().forEach(t => t.stop());
-            }
-            vid.remove();
-          }
-        }
+        _currentMode = '';
       }
 
       function showErr(title, msg) {
@@ -1182,7 +1170,7 @@
         showF('scr-err');
       }
 
-      // Tombol navigasi error
+      // Tombol exit dan error
       $('btn-exit').onclick = () => { cleanup();
         showF('scr-home'); };
       $('err-back').onclick = () => { hideEl('scr-err');
@@ -1191,95 +1179,87 @@
         start3D(); };
 
       // ─────────────────────────────────────────────────────────────
-      // 9. MODE A — AR NYATA (WebXR)
+      // 9. MODE AR NYATA (WebXR)
       // ─────────────────────────────────────────────────────────────
 
       async function startAR() {
-        // Cek dukungan WebXR
         if (!navigator.xr) {
-          // Fallback ke simulasi
-          toast('WebXR tidak didukung, beralih ke simulasi.', 2000);
+          // fallback ke simulasi
+          toast('WebXR tidak tersedia, beralih ke AR Simulasi.', 2500);
           startARSimulation();
           return;
         }
 
-        // Siapkan renderer transparan dengan XR diaktifkan
+        // Cek dukungan immersive-ar
+        let supported = false;
+        try {
+          supported = await navigator.xr.isSessionSupported('immersive-ar');
+        } catch (e) { supported = false; }
+
+        if (!supported) {
+          toast('WebXR AR tidak didukung, beralih ke AR Simulasi.', 2500);
+          startARSimulation();
+          return;
+        }
+
+        // Siapkan renderer transparan dengan XR
         initRenderer(true, true);
         $('glc').style.display = 'block';
         showF('hud');
-        $('hud-mode').textContent = 'AR Nyata (WebXR)';
+        $('hud-mode-badge').textContent = 'AR Nyata (WebXR)';
+        $('hud-mode').innerHTML = 'Mode <span id="hud-mode-badge">AR Nyata</span>';
         $('xhair').style.display = 'block';
         hint('Gerakkan ponsel untuk mendeteksi lantai...');
+        _currentMode = 'ar';
 
         ensureTree();
         const tree = cloneTree();
         tree.scale.setScalar(_scale);
-        tree.visible = false; // belum ditempatkan
+        tree.visible = false;
         _scene.add(tree);
 
-        // Variabel untuk WebXR
         let hitTestSource = null;
         let lastHitPose = null;
         let placed = false;
         let session = null;
 
         try {
-          // Cek dukungan sesi AR
-          const supported = await navigator.xr.isSessionSupported('immersive-ar');
-          if (!supported) {
-            toast('AR tidak didukung, beralih ke simulasi.', 2000);
-            cleanup();
-            startARSimulation();
-            return;
-          }
-
-          // Minta sesi AR dengan fitur hit-test
           session = await navigator.xr.requestSession('immersive-ar', {
             requiredFeatures: ['hit-test'],
             optionalFeatures: ['dom-overlay'],
             domOverlay: { root: document.body }
           });
         } catch (err) {
+          // Gagal memulai sesi, fallback simulasi
           toast('Gagal memulai AR: ' + err.message + '. Beralih ke simulasi.', 3000);
-          cleanup();
           startARSimulation();
           return;
         }
 
-        // Set sesi ke renderer Three.js
         _renderer.xr.setSession(session);
 
-        // Buat hit-test source
         try {
           hitTestSource = await session.requestHitTestSource({
             space: session.viewerSpace
           });
         } catch (err) {
-          toast('Hit-test gagal: ' + err.message + '. Beralih ke simulasi.', 3000);
+          toast('Hit-test gagal, beralih ke simulasi.', 2500);
           session.end();
-          cleanup();
           startARSimulation();
           return;
         }
 
-        // Tombol exit untuk menghentikan sesi
         $('btn-exit').onclick = () => {
-          if (session) {
-            session.end();
-          }
+          if (session) session.end();
           cleanup();
           showF('scr-home');
         };
 
-        // Set loop renderer
         _renderer.setAnimationLoop((time, frame) => {
           if (!frame) return;
-
-          // Dapatkan pose viewer
           const viewerPose = frame.getViewerPose(_renderer.xr.getReferenceSpace());
           if (!viewerPose) return;
 
-          // Jika pohon belum ditempatkan, lakukan hit-test
           if (!placed && hitTestSource) {
             const hitResults = frame.getHitTestResults(hitTestSource);
             if (hitResults.length > 0) {
@@ -1292,19 +1272,16 @@
             }
           }
 
-          // Jika sudah ditempatkan, animasikan pohon
           if (placed && tree.visible) {
             animTree(tree, time * 0.001);
           }
-
-          // Render scene
           _renderer.render(_scene, _camera);
         });
 
-        // ── EVENT TAP UNTUK MENEMPATKAN POHON ──
+        // Tap untuk menempatkan pohon
         const canvas = $('glc');
 
-        function placeTreeAtPose() {
+        function placeTree() {
           if (placed || !lastHitPose) {
             if (!lastHitPose) toast('Belum ada permukaan terdeteksi.');
             return;
@@ -1315,7 +1292,7 @@
             lastHitPose.position.z
           );
           tree.position.copy(pos);
-          tree.position.y += 0.01; // naikkan sedikit agar akar menyentuh lantai
+          tree.position.y += 0.01;
           tree.visible = true;
           placed = true;
           $('xhair').style.display = 'none';
@@ -1323,34 +1300,25 @@
           toast('🌳 Pohon muncul di lantai!');
         }
 
-        canvas.addEventListener('click', placeTreeAtPose);
-        canvas.addEventListener('touchstart', (e) => {
-          // Mencegah scroll dan memicu tap
-          e.preventDefault();
-          placeTreeAtPose();
-        }, { passive: false });
+        canvas.addEventListener('click', placeTree);
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault();
+          placeTree(); }, { passive: false });
 
-        // Setup tombol kontrol (skala, rotasi, buah) — mengacu ke tree
-        setupControls(() => tree, 'ar');
-
-        // Override tombol putar agar langsung memutar pohon (bukan kamera)
+        setupControls(() => tree);
+        // Override rotasi untuk putar objek
         $('c-rt').onclick = () => {
           _extraRotY += Math.PI / 4;
           tree.rotation.y = _extraRotY;
           toast('Putar 45°');
         };
-
-        // Simpan sesi untuk cleanup
         window._arSession = session;
-        _currentMode = 'ar';
       }
 
       // ─────────────────────────────────────────────────────────────
-      // 10. MODE B — AR SIMULASI (Kamera latar + orbit)
+      // 10. MODE AR SIMULASI (Kamera latar + orbit)
       // ─────────────────────────────────────────────────────────────
 
       async function startARSimulation() {
-        // Minta akses kamera
         let stream;
         try {
           stream = await navigator.mediaDevices.getUserMedia({
@@ -1358,11 +1326,13 @@
             audio: false
           });
         } catch (err) {
-          showErr('Kamera Tidak Tersedia', 'Izinkan akses kamera atau gunakan 3D Viewer.');
+          // Jika kamera gagal, langsung ke 3D Viewer
+          toast('Kamera tidak tersedia, buka 3D Viewer.', 2000);
+          start3D();
           return;
         }
 
-        // Siapkan elemen video untuk latar
+        // Buat elemen video untuk latar
         const vid = document.createElement('video');
         vid.srcObject = stream;
         vid.style.position = 'fixed';
@@ -1374,25 +1344,23 @@
         vid.autoplay = true;
         vid.muted = true;
         vid.playsInline = true;
-        vid.setAttribute('data-ar-sim', 'true');
         document.body.prepend(vid);
         await vid.play();
 
-        // Inisialisasi renderer transparan di atas video
         initRenderer(true, false);
         $('glc').style.display = 'block';
         showF('hud');
-        $('hud-mode').textContent = 'AR Simulasi';
-        $('xhair').style.display = 'block';
-        hint('Seret layar untuk memutar pohon · Pinch untuk zoom');
+        $('hud-mode-badge').textContent = 'AR Simulasi';
+        $('hud-mode').innerHTML = 'Mode <span id="hud-mode-badge">Simulasi</span>';
+        $('xhair').style.display = 'none';
+        hint('Seret untuk memutar · Pinch untuk zoom');
+        _currentMode = 'sim';
 
         ensureTree();
         const tree = cloneTree();
         tree.scale.setScalar(_scale);
-        tree.visible = true;
         _scene.add(tree);
 
-        // Kamera orbit mengelilingi pohon (seperti 3D Viewer)
         const TARGET = new THREE.Vector3(0, 5, 0);
         let camTheta = 0,
           camPhi = 0.35,
@@ -1411,7 +1379,6 @@
         }
         updateCam();
 
-        // Event touch/mouse untuk orbit
         let dragging = false,
           lastX = 0,
           lastY = 0,
@@ -1443,7 +1410,7 @@
             lastX = e.touches[0].clientX;
             lastY = e.touches[0].clientY; } else if (e.touches.length === 2) { dragging = false;
             lastD = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1]
-              .clientY); }
+            .clientY); }
         }, { passive: true });
         cv.addEventListener('touchmove', e => {
           if (e.touches.length === 1 && dragging) {
@@ -1464,20 +1431,11 @@
         }, { passive: true });
         cv.addEventListener('touchend', () => dragging = false, { passive: true });
 
-        // Setup kontrol (skala, rotasi, buah)
-        setupControls(() => tree, 'simulasi');
-
-        // Override rotasi: putar kamera (agar terlihat seperti memutar objek)
+        setupControls(() => tree);
         $('c-rt').onclick = () => {
           camTheta += Math.PI / 4;
           updateCam();
           toast('Putar 45°');
-        };
-
-        // Tombol exit khusus (hentikan kamera)
-        $('btn-exit').onclick = () => {
-          cleanup(false); // hapus video
-          showF('scr-home');
         };
 
         let time = 0;
@@ -1492,32 +1450,40 @@
         }
         loop();
 
-        _currentMode = 'simulasi';
+        // Cleanup saat exit
+        const oldExit = $('btn-exit').onclick;
+        $('btn-exit').onclick = () => {
+          if (stream) stream.getTracks().forEach(t => t.stop());
+          vid.remove();
+          cleanup();
+          showF('scr-home');
+        };
       }
 
       // ─────────────────────────────────────────────────────────────
-      // 11. MODE C — 3D VIEWER (Tanpa kamera)
+      // 11. MODE 3D VIEWER
       // ─────────────────────────────────────────────────────────────
 
       function start3D() {
         initRenderer(false, false);
         $('glc').style.display = 'block';
         showF('hud');
-        $('hud-mode').textContent = '3D Viewer';
+        $('hud-mode-badge').textContent = '3D Viewer';
+        $('hud-mode').innerHTML = 'Mode <span id="hud-mode-badge">3D Viewer</span>';
         $('xhair').style.display = 'none';
         hint('Seret untuk memutar · Pinch untuk zoom');
+        _currentMode = '3d';
 
         ensureTree();
         const tree = cloneTree();
         tree.scale.setScalar(_scale);
         _scene.add(tree);
 
-        // Orbit camera
         const TARGET = new THREE.Vector3(0, 5, 0);
         let camTheta = 0,
-          camPhi = .35,
+          camPhi = 0.35,
           camDist = 22;
-        const MIN_PHI = - .1,
+        const MIN_PHI = -0.1,
           MAX_PHI = 1.3,
           MIN_DIST = 6,
           MAX_DIST = 40;
@@ -1544,15 +1510,15 @@
           lastY = e.clientY; });
         cv.addEventListener('mousemove', e => {
           if (!dragging) return;
-          camTheta -= (e.clientX - lastX) * .005;
-          camPhi += (e.clientY - lastY) * .004;
+          camTheta -= (e.clientX - lastX) * 0.005;
+          camPhi += (e.clientY - lastY) * 0.004;
           camPhi = Math.max(MIN_PHI, Math.min(MAX_PHI, camPhi));
           lastX = e.clientX;
           lastY = e.clientY;
           updateCam();
         });
         cv.addEventListener('mouseup', () => dragging = false);
-        cv.addEventListener('wheel', e => { camDist += e.deltaY * .05;
+        cv.addEventListener('wheel', e => { camDist += e.deltaY * 0.05;
           camDist = Math.max(MIN_DIST, Math.min(MAX_DIST, camDist));
           updateCam(); }, { passive: true });
 
@@ -1562,12 +1528,12 @@
             lastX = e.touches[0].clientX;
             lastY = e.touches[0].clientY; } else if (e.touches.length === 2) { dragging = false;
             lastD = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1]
-              .clientY); }
+            .clientY); }
         }, { passive: true });
         cv.addEventListener('touchmove', e => {
           if (e.touches.length === 1 && dragging) {
-            camTheta -= (e.touches[0].clientX - lastX) * .005;
-            camPhi += (e.touches[0].clientY - lastY) * .004;
+            camTheta -= (e.touches[0].clientX - lastX) * 0.005;
+            camPhi += (e.touches[0].clientY - lastY) * 0.004;
             camPhi = Math.max(MIN_PHI, Math.min(MAX_PHI, camPhi));
             lastX = e.touches[0].clientX;
             lastY = e.touches[0].clientY;
@@ -1575,7 +1541,7 @@
           } else if (e.touches.length === 2) {
             const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1]
               .clientY);
-            camDist -= (d - lastD) * .05;
+            camDist -= (d - lastD) * 0.05;
             camDist = Math.max(MIN_DIST, Math.min(MAX_DIST, camDist));
             lastD = d;
             updateCam();
@@ -1583,48 +1549,47 @@
         }, { passive: true });
         cv.addEventListener('touchend', () => dragging = false, { passive: true });
 
-        // Setup kontrol
-        setupControls(() => tree, '3d');
-
-        // Override tombol rotasi untuk 3D viewer: putar kamera
+        setupControls(() => tree);
         $('c-rt').onclick = () => {
           camTheta += Math.PI / 4;
           updateCam();
           toast('Putar 45°');
         };
 
-        $('btn-exit').onclick = () => {
-          cleanup();
-          showF('scr-home');
-        };
-
         let time = 0;
 
         function loop() {
           _raf = requestAnimationFrame(loop);
-          time += .01;
-          if (autoR) { camTheta += .003;
+          time += 0.01;
+          if (autoR) { camTheta += 0.003;
             updateCam(); }
           animTree(tree, time);
           _renderer.render(_scene, _camera);
         }
         loop();
-
-        _currentMode = '3d';
       }
 
       // ─────────────────────────────────────────────────────────────
-      // 12. INISIALISASI APLIKASI
+      // 12. INISIALISASI & MENU
       // ─────────────────────────────────────────────────────────────
 
       (async () => {
         await new Promise(r => setTimeout(r, 80));
         ensureTree();
 
-        // Cek dukungan WebXR untuk menampilkan informasi
-        const xrOk = !!(navigator.xr);
-        if (!xrOk) {
-          $('mb-ar').querySelector('.md').textContent = 'WebXR tidak didukung. Akan menggunakan simulasi dengan kamera.';
+        // Cek WebXR untuk badge di menu
+        let xrSupported = false;
+        if (navigator.xr) {
+          try {
+            xrSupported = await navigator.xr.isSessionSupported('immersive-ar');
+          } catch (e) { xrSupported = false; }
+        }
+        if (xrSupported) {
+          $('ar-badge').textContent = 'WebXR AR siap';
+          $('ar-badge').style.borderColor = '#4caf6e';
+        } else {
+          $('ar-badge').textContent = 'Simulasi (kamera)';
+          $('ar-badge').style.borderColor = '#f39c12';
         }
 
         await new Promise(r => setTimeout(r, 900));
@@ -1633,22 +1598,11 @@
         $('scr-load').style.display = 'none';
         showF('scr-home');
 
-        // Event listener menu
-        $('mb-ar').onclick = async () => {
+        // Event menu
+        $('mb-ar').onclick = () => {
           hideEl('scr-home');
-          // Coba deteksi WebXR, jika gagal fallback ke simulasi
-          try {
-            if (navigator.xr) {
-              const supported = await navigator.xr.isSessionSupported('immersive-ar');
-              if (supported) {
-                startAR();
-                return;
-              }
-            }
-          } catch (e) {}
-          // Fallback ke simulasi
-          toast('Menggunakan mode simulasi dengan kamera.', 2000);
-          startARSimulation();
+          // Coba WebXR dulu, jika tidak support otomatis fallback di dalam startAR
+          startAR();
         };
 
         $('mb-3d').onclick = () => {
