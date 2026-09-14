@@ -635,7 +635,7 @@
     let _scene, _camera, _renderer;
     let _treeRoot, _markerRoot;
     let _scale = 1, _extraRotY = 0, _fruit = false;
-    const BASE_SCALE = 0.5;
+    const BASE_SCALE = 0.08;
 
     // ─── DEBUG PANEL ─────────────────────────────────
     let _debugOn = false;
@@ -823,7 +823,7 @@
       new THREEx.ArMarkerControls(arToolkitContext, _markerRoot, {
         type: 'pattern',
         patternUrl: 'https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/data/data/patt.hiro',
-        size: 1
+        size: 0.15
       });
 
       // Build tree
