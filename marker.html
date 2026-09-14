@@ -1,86 +1,107 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Marker AR — Ficus minahasae</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box;}
-body{background:#f5f5f0;font-family:'Georgia',serif;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;}
-.card{background:#fff;border-radius:16px;padding:32px;max-width:440px;width:100%;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,0.10);}
-.top-tag{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#4caf6e;margin-bottom:6px;}
-.title{font-size:22px;font-style:italic;color:#1a2e1a;margin-bottom:4px;}
-.sub{font-size:12px;color:#6d9970;margin-bottom:24px;}
-.marker-wrap{width:220px;height:220px;margin:0 auto 20px;border:3px solid #1a2e1a;border-radius:4px;display:flex;align-items:center;justify-content:center;background:#fff;}
-.marker-wrap svg{width:200px;height:200px;}
-.instructions{font-size:12px;color:#444;line-height:1.7;margin-bottom:20px;text-align:left;}
-.instructions li{margin-bottom:4px;}
-.print-btn{background:#2e7d52;color:#fff;border:none;border-radius:8px;padding:11px 28px;font-size:13px;cursor:pointer;font-family:inherit;margin-bottom:8px;width:100%;}
-.back-link{font-size:12px;color:#4caf6e;text-decoration:none;}
-@media print{
-  body{background:#fff;}
-  .card{box-shadow:none;border:none;padding:16px;}
-  .print-btn,.back-link,.no-print{display:none;}
-  .marker-wrap{border-color:#000;}
-}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Marker Hiro — Cetak</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #f5f5f5;
+      color: #222;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 30px 20px;
+      min-height: 100vh;
+    }
+    h1 { font-size: 22px; margin-bottom: 6px; }
+    p { font-size: 14px; color: #555; margin-bottom: 20px; text-align: center; max-width: 500px; line-height: 1.6; }
+    .marker-box {
+      background: #fff;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    .marker-box img {
+      width: 320px;
+      height: 320px;
+      display: block;
+      image-rendering: pixelated;
+      border: 1px solid #ddd;
+    }
+    .marker-box .label {
+      margin-top: 12px;
+      font-size: 12px;
+      color: #888;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    .tips {
+      margin-top: 30px;
+      padding: 18px 22px;
+      background: #fff;
+      border-radius: 10px;
+      max-width: 500px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+      font-size: 13px;
+      line-height: 1.8;
+      color: #444;
+    }
+    .tips h3 { font-size: 14px; margin-bottom: 8px; color: #2e7d52; }
+    .tips ol { padding-left: 20px; }
+    .tips li { margin-bottom: 4px; }
+    button {
+      margin-top: 22px;
+      background: #4caf6e;
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      padding: 12px 30px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(76,175,110,0.3);
+      font-family: inherit;
+    }
+    button:active { transform: scale(0.97); }
+    @media print {
+      body { background: #fff; padding: 0; }
+      h1, p, .tips, button { display: none; }
+      .marker-box { box-shadow: none; padding: 0; }
+      .marker-box img { border: none; width: 15cm; height: 15cm; }
+      .marker-box .label { display: none; }
+    }
+  </style>
 </head>
 <body>
-<div class="card">
-  <div class="top-tag">Botanika AR</div>
-  <div class="title">Ficus minahasae</div>
-  <div class="sub">Marker untuk Mode AR · Hiro Pattern</div>
 
-  <div class="marker-wrap">
-    <!-- Hiro marker SVG — mathematically correct pattern -->
-    <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-      <!-- Outer border -->
-      <rect width="200" height="200" fill="white"/>
-      <rect x="0" y="0" width="200" height="200" fill="black"/>
-      <rect x="14" y="14" width="172" height="172" fill="white"/>
-      <!-- Inner black frame -->
-      <rect x="28" y="28" width="144" height="144" fill="black"/>
-      <!-- White inner region -->
-      <rect x="42" y="42" width="116" height="116" fill="white"/>
-      <!-- Hiro pattern: specific pixel blocks -->
-      <!-- Top-left square -->
-      <rect x="56" y="56" width="24" height="24" fill="black"/>
-      <!-- Top-right square -->
-      <rect x="120" y="56" width="24" height="24" fill="black"/>
-      <!-- Bottom-left square -->
-      <rect x="56" y="120" width="24" height="24" fill="black"/>
-      <!-- Bottom-right square -->
-      <rect x="120" y="120" width="24" height="24" fill="black"/>
-      <!-- Center cross horizontal -->
-      <rect x="72" y="56" width="56" height="14" fill="black"/>
-      <rect x="72" y="130" width="56" height="14" fill="black"/>
-      <!-- Center cross vertical -->
-      <rect x="56" y="72" width="14" height="56" fill="black"/>
-      <rect x="130" y="72" width="14" height="56" fill="black"/>
-      <!-- Center block -->
-      <rect x="80" y="80" width="40" height="40" fill="black"/>
-      <!-- Center white dot -->
-      <rect x="88" y="88" width="24" height="24" fill="white"/>
-    </svg>
+  <h1>📄 Marker AR — Ficus minahasae</h1>
+  <p>Cetak marker di bawah ini, atau tampilkan di layar perangkat lain. Arahkan kamera AR ke marker untuk melihat pohon 3D muncul di atasnya.</p>
+
+  <div class="marker-box">
+    <img
+      src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/data/images/hiro.png"
+      alt="Hiro Marker"
+      crossorigin="anonymous"
+    >
+    <div class="label">Hiro Marker</div>
   </div>
 
-  <div class="instructions">
-    <strong>Cara menggunakan:</strong>
-    <ol style="margin-top:8px;padding-left:18px;">
-      <li>Cetak halaman ini atau tampilkan di layar lain</li>
-      <li>Buka aplikasi <strong>Ficus AR</strong> di HP kamu</li>
-      <li>Pilih mode <strong>Marker AR</strong></li>
-      <li>Arahkan kamera ke marker hitam-putih di atas</li>
-      <li>Pohon <em>Ficus minahasae</em> akan muncul di atas marker!</li>
+  <div class="tips">
+    <h3>💡 Cara Menggunakan</h3>
+    <ol>
+      <li>Cetak marker ini dengan ukuran minimal <strong>10 × 10 cm</strong>.</li>
+      <li>Letakkan di permukaan datar (meja/lantai).</li>
+      <li>Buka aplikasi AR di browser HP.</li>
+      <li>Arahkan kamera ke marker dari jarak 20–50 cm.</li>
+      <li>Pohon 3D akan muncul dan menempel stabil pada marker.</li>
+      <li>Anda bisa bergerak mengelilingi marker untuk melihat pohon dari berbagai sisi.</li>
     </ol>
-    <div style="margin-top:12px;padding:10px;background:#f0f7f0;border-radius:8px;font-size:11px;color:#2e7d52;">
-      💡 <strong>Tips:</strong> Pastikan seluruh marker terlihat jelas di kamera, pencahayaan cukup, dan jarak 20–50 cm dari kamera.
-    </div>
   </div>
 
-  <button class="print-btn" onclick="window.print()">🖨 Cetak Marker Ini</button>
-  <br>
-  <a class="back-link" href="index.html">← Kembali ke Aplikasi AR</a>
-</div>
+  <button onclick="window.print()">🖨️ Cetak Marker</button>
+
 </body>
 </html>
