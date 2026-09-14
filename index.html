@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
   <title>Ficus minahasae — Marker AR</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -16,7 +18,7 @@
       background: #000;
     }
 
-    /* Paksa SEMUA video di halaman ini agar terlihat */
+    /* Video kamera (dibuat AR.js) */
     video {
       position: fixed !important;
       top: 0 !important;
@@ -35,7 +37,7 @@
       transform: none !important;
     }
 
-    /* Paksa SEMUA canvas agar transparan & di atas video */
+    /* Canvas Three.js (transparan di atas video) */
     canvas {
       position: fixed !important;
       top: 0 !important;
@@ -244,6 +246,15 @@
   (function() {
     'use strict';
 
+    // ─────────────────────────────────────────────────────────────
+    // KONFIGURASI — UBAH DI SINI KALAU PERLU
+    // ─────────────────────────────────────────────────────────────
+    const MARKER_SIZE_METERS = 0.15;   // Marker dicetak 15 cm
+    const TREE_SCALE = 0.025;          // Skala pohon (0.025 ≈ 25 cm)
+    // Kalau pohon kurang besar → naikkan (misal 0.03, 0.04)
+    // Kalau pohon kelewat besar → turunkan (misal 0.02, 0.015)
+    // ─────────────────────────────────────────────────────────────
+
     const $ = id => document.getElementById(id);
     let _tt = null;
 
@@ -356,7 +367,7 @@
       return t;
     }
 
-    // ─── BUILD TREE (dipertahankan sama) ────────────
+    // ─── BUILD TREE ──────────────────────────────────
     function buildTree(bT, gT, fT, rT) {
       const G = new THREE.Group();
       const S = 0.013;
@@ -634,15 +645,16 @@
     // ─── STATE ───────────────────────────────────────
     let _scene, _camera, _renderer;
     let _treeRoot, _markerRoot;
-    let _scale = 1, _extraRotY = 0, _fruit = false;
-    const BASE_SCALE = 0.08;
+    let _scaleFactor = 1;          // pengali dari TREE_SCALE untuk tombol Kecil/Besar
+    let _extraRotY = 0;
+    let _fruit = false;
 
-    // ─── DEBUG PANEL ─────────────────────────────────
+    // ─── DEBUG ───────────────────────────────────────
     let _debugOn = false;
-    function updateDebug(info) {
-      if (!_debugOn) return;
+    function updateDebug(html) {
       const el = $('debug');
-      if (el) el.innerHTML = info;
+      if (!el) return;
+      el.innerHTML = html;
     }
 
     // ─── SETUP AR ────────────────────────────────────
@@ -670,14 +682,11 @@
       _renderer.setClearColor(0x000000, 0);
       _renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       _renderer.setSize(window.innerWidth, window.innerHeight);
-      _renderer.domElement.style.cssText = `
-        position: fixed !important;
-        top: 0 !important; left: 0 !important;
-        width: 100vw !important; height: 100vh !important;
-        z-index: 2 !important;
-        pointer-events: none !important;
-        background: transparent !important;
-      `;
+      _renderer.domElement.style.cssText =
+        'position:fixed !important;top:0 !important;left:0 !important;' +
+        'width:100vw !important;height:100vh !important;' +
+        'z-index:2 !important;pointer-events:none !important;' +
+        'background:transparent !important;';
       document.body.appendChild(_renderer.domElement);
 
       setMsg('Meminta akses kamera...');
@@ -692,83 +701,50 @@
       });
 
       arToolkitSource.init(function onReady() {
-        // ★★★ KUNCI PERBAIKAN: Hapus style inline AR.js & paksa visible ★★★
+        // Paksa style video agar pasti terlihat
         const video = arToolkitSource.domElement;
-        if (!video) {
-          updateDebug('❌ Video element tidak ditemukan');
-          return;
+        if (video) {
+          video.removeAttribute('style');
+          video.style.cssText =
+            'position:fixed !important;top:0 !important;left:0 !important;' +
+            'right:0 !important;bottom:0 !important;' +
+            'width:100vw !important;height:100vh !important;' +
+            'min-width:100vw !important;min-height:100vh !important;' +
+            'max-width:none !important;max-height:none !important;' +
+            'object-fit:cover !important;z-index:1 !important;' +
+            'display:block !important;visibility:visible !important;' +
+            'opacity:1 !important;transform:none !important;' +
+            'background:#000 !important;';
+          video.setAttribute('playsinline', '');
+          video.setAttribute('webkit-playsinline', '');
+          video.muted = true;
+          video.playsInline = true;
+          if (video.paused) video.play().catch(() => {});
         }
-
-        // Hapus SEMUA style inline yang dibuat AR.js
-        video.removeAttribute('style');
-
-        // Terapkan style kita sendiri dengan prioritas maksimal
-        video.style.cssText = `
-          position: fixed !important;
-          top: 0 !important; left: 0 !important;
-          right: 0 !important; bottom: 0 !important;
-          width: 100vw !important; height: 100vh !important;
-          min-width: 100vw !important; min-height: 100vh !important;
-          max-width: none !important; max-height: none !important;
-          object-fit: cover !important;
-          z-index: 1 !important;
-          display: block !important;
-          visibility: visible !important;
-          opacity: 1 !important;
-          transform: none !important;
-          background: #000 !important;
-        `;
-
-        // Pastikan atribut wajib ada
-        video.setAttribute('playsinline', '');
-        video.setAttribute('webkit-playsinline', '');
-        video.setAttribute('autoplay', '');
-        video.setAttribute('muted', '');
-        video.muted = true;
-        video.playsInline = true;
-
-        // Jika video paused, coba play
-        if (video.paused) {
-          video.play().catch(e => console.warn('Video play gagal:', e));
-        }
-
-        // Force reflow
-        void video.offsetWidth;
 
         console.log('=== VIDEO SETUP ===');
-        console.log('Video element:', video);
-        console.log('Video srcObject:', video.srcObject);
-        console.log('Video dimensions:', video.videoWidth, 'x', video.videoHeight);
-        console.log('Video paused:', video.paused);
-        console.log('Video readyState:', video.readyState);
-
-        // Cek koneksi stream
-        if (video.srcObject) {
-          const tracks = video.srcObject.getVideoTracks();
-          console.log('Video tracks:', tracks.length);
-          tracks.forEach((t, i) => console.log(`Track ${i}:`, t.label, t.getSettings()));
+        if (video) {
+          console.log('Video dimensions:', video.videoWidth, 'x', video.videoHeight);
+          console.log('Video readyState:', video.readyState);
         }
 
-        // Update debug panel
-        const dbgInfo = `
-          <b>DEBUG VIDEO</b><br>
-          Video ada: ${!!video}<br>
-          srcObject: ${!!video.srcObject}<br>
-          ${video.videoWidth}x${video.videoHeight}<br>
-          paused: ${video.paused}<br>
-          readyState: ${video.readyState}<br>
-          z-index: ${getComputedStyle(video).zIndex}<br>
-          position: ${getComputedStyle(video).position}<br>
-          display: ${getComputedStyle(video).display}<br>
-          opacity: ${getComputedStyle(video).opacity}
-        `;
-        updateDebug(dbgInfo);
+        updateDebug(
+          '<b>DEBUG VIDEO</b><br>' +
+          'Video ada: ' + !!video + '<br>' +
+          'srcObject: ' + (video && !!video.srcObject) + '<br>' +
+          (video ? video.videoWidth + 'x' + video.videoHeight : '-') + '<br>' +
+          'paused: ' + (video && video.paused) + '<br>' +
+          'readyState: ' + (video && video.readyState) + '<br>' +
+          'z-index: ' + (video ? getComputedStyle(video).zIndex : '-') + '<br>' +
+          'display: ' + (video ? getComputedStyle(video).display : '-') + '<br>' +
+          'opacity: ' + (video ? getComputedStyle(video).opacity : '-')
+        );
 
-        // Tunggu video siap, baru sembunyikan loading
+        // Tunggu video siap
         let attempts = 0;
         function checkReady() {
           attempts++;
-          if ((video.readyState >= 2 && video.videoWidth > 0) || attempts > 30) {
+          if (video && (video.readyState >= 2 && video.videoWidth > 0) || attempts > 30) {
             setMsg('Kamera aktif!');
             setTimeout(() => {
               const load = $('scr-load');
@@ -783,13 +759,13 @@
         }
         checkReady();
 
-        // Resize handler
         setTimeout(onResize, 200);
       }, function onError(err) {
         console.error('AR.js source error:', err);
-        showErr('Kamera tidak dapat diakses',
-          'Izinkan akses kamera. Jika tidak muncul popup izin, cek pengaturan situs di browser. Detail: ' +
-          (err && err.message ? err.message : String(err)));
+        showErr(
+          'Kamera tidak dapat diakses',
+          'Izinkan akses kamera di browser. Detail: ' + (err && err.message ? err.message : String(err))
+        );
       });
 
       function onResize() {
@@ -820,17 +796,18 @@
       _markerRoot = new THREE.Group();
       _scene.add(_markerRoot);
 
+      // ─── KUNCI: ukuran marker & marker pattern ───
       new THREEx.ArMarkerControls(arToolkitContext, _markerRoot, {
         type: 'pattern',
         patternUrl: 'https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/data/data/patt.hiro',
-        size: 0.15
+        size: MARKER_SIZE_METERS     // 0.15 m = 15 cm
       });
 
-      // Build tree
+      // Build tree & attach
       setMsg('Membangun pohon...');
       const bT = mkBark(), gT = mkGnd(), fT = mkFig(), rT = mkRoot();
       _treeRoot = buildTree(bT, gT, fT, rT);
-      _treeRoot.scale.setScalar(BASE_SCALE);
+      _treeRoot.scale.setScalar(TREE_SCALE);   // 0.025
       _treeRoot.rotation.y = Math.PI;
       _markerRoot.add(_treeRoot);
 
@@ -872,14 +849,14 @@
     // ─── KONTROL ─────────────────────────────────────
     function bindControls() {
       $('c-sm').onclick = () => {
-        _scale = Math.max(0.15, _scale * 0.78);
-        if (_treeRoot) _treeRoot.scale.setScalar(_scale * BASE_SCALE);
-        toast('Skala: ' + Math.round(_scale * 100) + '%');
+        _scaleFactor = Math.max(0.3, _scaleFactor * 0.78);
+        if (_treeRoot) _treeRoot.scale.setScalar(TREE_SCALE * _scaleFactor);
+        toast('Skala: ' + Math.round(_scaleFactor * 100) + '%');
       };
       $('c-lg').onclick = () => {
-        _scale = Math.min(4, _scale * 1.28);
-        if (_treeRoot) _treeRoot.scale.setScalar(_scale * BASE_SCALE);
-        toast('Skala: ' + Math.round(_scale * 100) + '%');
+        _scaleFactor = Math.min(4, _scaleFactor * 1.28);
+        if (_treeRoot) _treeRoot.scale.setScalar(TREE_SCALE * _scaleFactor);
+        toast('Skala: ' + Math.round(_scaleFactor * 100) + '%');
       };
       $('c-rt').onclick = () => {
         _extraRotY += Math.PI / 4;
@@ -894,7 +871,9 @@
         if (fg) fg.visible = _fruit;
         const lm = _treeRoot.userData.leafMats;
         if (lm) {
-          const h = _fruit ? .27 : .265, s = _fruit ? .58 : .55, l = _fruit ? .15 : .18;
+          const h = _fruit ? .27 : .265;
+          const s = _fruit ? .58 : .55;
+          const l = _fruit ? .15 : .18;
           lm.forEach((m, i) => m.color.setHSL(h + i * .013, s, l + (i % 3) * .03));
         }
         toast(_fruit ? '🌰 Mode Berbuah' : '🌿 Mode Normal');
@@ -904,24 +883,21 @@
         this.classList.toggle('on', _debugOn);
         const el = $('debug');
         if (el) el.classList.toggle('show', _debugOn);
-        // Re-check info
         const video = document.querySelector('video');
         if (video) {
-          updateDebug(`
-            <b>DEBUG VIDEO</b><br>
-            Video ada: ${!!video}<br>
-            srcObject: ${!!video.srcObject}<br>
-            ${video.videoWidth}x${video.videoHeight}<br>
-            paused: ${video.paused}<br>
-            readyState: ${video.readyState}<br>
-            z-index: ${getComputedStyle(video).zIndex}<br>
-            position: ${getComputedStyle(video).position}<br>
-            display: ${getComputedStyle(video).display}<br>
-            opacity: ${getComputedStyle(video).opacity}<br>
-            display ${video.style.display}
-          `);
+          updateDebug(
+            '<b>DEBUG VIDEO</b><br>' +
+            'Video ada: true<br>' +
+            'srcObject: ' + !!video.srcObject + '<br>' +
+            video.videoWidth + 'x' + video.videoHeight + '<br>' +
+            'paused: ' + video.paused + '<br>' +
+            'readyState: ' + video.readyState + '<br>' +
+            'z-index: ' + getComputedStyle(video).zIndex + '<br>' +
+            'display: ' + getComputedStyle(video).display + '<br>' +
+            'opacity: ' + getComputedStyle(video).opacity
+          );
         } else {
-          updateDebug('❌ Video element tidak ditemukan di DOM');
+          updateDebug('❌ Video element tidak ditemukan');
         }
       };
       $('btn-exit').onclick = () => location.reload();
