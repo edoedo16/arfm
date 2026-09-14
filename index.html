@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <meta name="apple-mobile-web-app-capable" content="yes">
   <title>Ficus minahasae — Marker AR</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -14,35 +13,41 @@
       overflow: hidden;
       font-family: 'Segoe UI', system-ui, sans-serif;
       color: #fff;
-      /* Body TIDAK diberi background — biar video terlihat */
+      background: #000;
     }
 
-    /* ── VIDEO KAMERA (dibuat AR.js) ────────────────── */
-    /* Video harus paling bawah, tapi menutupi body       */
-    body > video {
+    /* Paksa SEMUA video di halaman ini agar terlihat */
+    video {
       position: fixed !important;
       top: 0 !important;
       left: 0 !important;
       width: 100vw !important;
       height: 100vh !important;
+      min-width: 100vw !important;
+      min-height: 100vh !important;
+      max-width: none !important;
+      max-height: none !important;
       object-fit: cover !important;
       z-index: 1 !important;
-      background: #000;
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+      transform: none !important;
     }
 
-    /* ── CANVAS THREE.JS ────────────────────────────── */
-    /* Canvas harus di atas video, tapi transparan       */
-    body > canvas {
+    /* Paksa SEMUA canvas agar transparan & di atas video */
+    canvas {
       position: fixed !important;
       top: 0 !important;
       left: 0 !important;
       width: 100vw !important;
       height: 100vh !important;
       z-index: 2 !important;
-      pointer-events: none;
+      pointer-events: none !important;
+      background: transparent !important;
     }
 
-    /* ── LOADING ───────────────────────────────────── */
+    /* Loading */
     #scr-load {
       position: fixed; inset: 0;
       z-index: 1000;
@@ -64,9 +69,9 @@
     .l1 { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: #4caf6e; }
     .l2 { font-size: 22px; font-style: italic; color: #e8f5e9; }
     .l3 { font-size: 11px; color: #6d9970; }
-    .lmsg { font-size: 11px; color: #4caf6e; }
+    .lmsg { font-size: 11px; color: #4caf6e; min-height: 16px; }
 
-    /* ── HUD ───────────────────────────────────────── */
+    /* HUD */
     #hud {
       position: fixed; inset: 0;
       z-index: 500;
@@ -96,11 +101,8 @@
       border: 1px solid rgba(255,255,255,0.16);
       border-radius: 8px;
       padding: 6px 11px;
-      font-size: 11px;
-      color: #ccc;
-      cursor: pointer;
-      font-family: inherit;
-      -webkit-tap-highlight-color: transparent;
+      font-size: 11px; color: #ccc;
+      cursor: pointer; font-family: inherit;
     }
 
     #hud-hint {
@@ -126,15 +128,11 @@
     #hud-bot button {
       background: rgba(0,0,0,0.72);
       backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
       border: 1px solid rgba(78,175,110,0.3);
       border-radius: 10px;
       padding: 10px 14px;
-      font-size: 12px;
-      color: #a5c8ac;
-      cursor: pointer;
-      font-family: inherit;
-      -webkit-tap-highlight-color: transparent;
+      font-size: 12px; color: #a5c8ac;
+      cursor: pointer; font-family: inherit;
     }
     #hud-bot button:active,
     #hud-bot button.on {
@@ -143,7 +141,7 @@
       color: #e8f5e9;
     }
 
-    /* ── TOAST ─────────────────────────────────────── */
+    /* Toast */
     #toast {
       position: fixed; bottom: 150px;
       left: 50%; transform: translateX(-50%);
@@ -151,17 +149,32 @@
       border: 1px solid rgba(78,175,110,0.3);
       border-radius: 10px;
       padding: 8px 16px;
-      font-size: 12px;
-      color: #a5c8ac;
-      opacity: 0;
-      transition: opacity .25s;
-      pointer-events: none;
-      z-index: 900;
+      font-size: 12px; color: #a5c8ac;
+      opacity: 0; transition: opacity .25s;
+      pointer-events: none; z-index: 900;
       white-space: nowrap;
     }
     #toast.show { opacity: 1; }
 
-    /* ── ERROR ─────────────────────────────────────── */
+    /* Debug panel */
+    #debug {
+      position: fixed;
+      top: 80px; left: 10px;
+      z-index: 999;
+      background: rgba(0,0,0,0.85);
+      border: 1px solid #4caf6e;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-family: monospace;
+      font-size: 11px;
+      color: #4caf6e;
+      max-width: 260px;
+      line-height: 1.5;
+      display: none;
+    }
+    #debug.show { display: block; }
+
+    /* Error */
     #scr-err {
       position: fixed; inset: 0;
       z-index: 1100;
@@ -177,7 +190,7 @@
     #scr-err.show { display: flex; }
     #scr-err .ei { font-size: 44px; }
     #scr-err .et { font-size: 16px; color: #e88; }
-    #scr-err .em { font-size: 12px; color: #a88; line-height: 1.65; max-width: 280px; }
+    #scr-err .em { font-size: 12px; color: #a88; line-height: 1.65; max-width: 320px; }
     #scr-err button {
       background: #2e7d52; border: none; border-radius: 8px;
       color: #fff; padding: 10px 24px; font-size: 13px;
@@ -187,7 +200,6 @@
 </head>
 <body>
 
-  <!-- LOADING -->
   <div id="scr-load">
     <div class="l1">Botanika AR</div>
     <div class="l2">Ficus minahasae</div>
@@ -196,7 +208,6 @@
     <div class="lmsg" id="lmsg">Memuat kamera AR...</div>
   </div>
 
-  <!-- HUD -->
   <div id="hud">
     <div id="hud-top">
       <span style="font-size:22px;">🌳</span>
@@ -212,10 +223,12 @@
       <button id="c-rt">↺ Putar</button>
       <button id="c-fr">🌰 Berbuah</button>
       <button id="c-lg">⊕ Besar</button>
+      <button id="c-dbg" style="font-size:10px;">🐞</button>
     </div>
   </div>
 
   <div id="toast"></div>
+  <div id="debug"></div>
 
   <div id="scr-err">
     <div class="ei">⚠️</div>
@@ -224,7 +237,6 @@
     <button onclick="location.reload()">Coba Lagi</button>
   </div>
 
-  <!-- Library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/three.js/build/ar-threex.js"></script>
 
@@ -344,7 +356,7 @@
       return t;
     }
 
-    // ─── BUILD TREE ──────────────────────────────────
+    // ─── BUILD TREE (dipertahankan sama) ────────────
     function buildTree(bT, gT, fT, rT) {
       const G = new THREE.Group();
       const S = 0.013;
@@ -625,42 +637,52 @@
     let _scale = 1, _extraRotY = 0, _fruit = false;
     const BASE_SCALE = 0.5;
 
+    // ─── DEBUG PANEL ─────────────────────────────────
+    let _debugOn = false;
+    function updateDebug(info) {
+      if (!_debugOn) return;
+      const el = $('debug');
+      if (el) el.innerHTML = info;
+    }
+
     // ─── SETUP AR ────────────────────────────────────
     function setupAR() {
       setMsg('Menyiapkan scene...');
 
-      // 1. Scene + Camera
+      // Scene + Camera
       _scene = new THREE.Scene();
       _camera = new THREE.Camera();
       _scene.add(_camera);
 
-      // 2. Lighting
+      // Lighting
       _scene.add(new THREE.AmbientLight(0xffffff, 1.2));
       const sun = new THREE.DirectionalLight(0xfff5d8, 2.0);
       sun.position.set(1, 3, 2);
       _scene.add(sun);
       _scene.add(new THREE.HemisphereLight(0x88aa88, 0x221100, 0.6));
 
-      // 3. Renderer — PENTING: alpha true, clear color transparan
+      // Renderer
       _renderer = new THREE.WebGLRenderer({
         antialias: true,
         alpha: true,
         premultipliedAlpha: false
       });
-      _renderer.setClearColor(0x000000, 0);   // <-- alpha 0 = transparan
+      _renderer.setClearColor(0x000000, 0);
       _renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       _renderer.setSize(window.innerWidth, window.innerHeight);
-      // Style inline agar pasti
-      _renderer.domElement.style.position = 'fixed';
-      _renderer.domElement.style.top = '0';
-      _renderer.domElement.style.left = '0';
-      _renderer.domElement.style.width = '100vw';
-      _renderer.domElement.style.height = '100vh';
-      _renderer.domElement.style.zIndex = '2';   // di atas video
-      _renderer.domElement.style.pointerEvents = 'none';
+      _renderer.domElement.style.cssText = `
+        position: fixed !important;
+        top: 0 !important; left: 0 !important;
+        width: 100vw !important; height: 100vh !important;
+        z-index: 2 !important;
+        pointer-events: none !important;
+        background: transparent !important;
+      `;
       document.body.appendChild(_renderer.domElement);
 
-      // 4. AR.js source (kamera)
+      setMsg('Meminta akses kamera...');
+
+      // AR.js source
       const arToolkitSource = new THREEx.ArToolkitSource({
         sourceType: 'webcam',
         sourceWidth: 1280,
@@ -670,43 +692,118 @@
       });
 
       arToolkitSource.init(function onReady() {
-        // Video sudah dibuat AR.js → style ulang agar z-index di bawah canvas
+        // ★★★ KUNCI PERBAIKAN: Hapus style inline AR.js & paksa visible ★★★
         const video = arToolkitSource.domElement;
-        video.style.position = 'fixed';
-        video.style.top = '0';
-        video.style.left = '0';
-        video.style.width = '100vw';
-        video.style.height = '100vh';
-        video.style.objectFit = 'cover';
-        video.style.zIndex = '1';       // di bawah canvas
-        video.style.background = '#000';
+        if (!video) {
+          updateDebug('❌ Video element tidak ditemukan');
+          return;
+        }
 
-        // Resize
-        setTimeout(onResize, 300);
+        // Hapus SEMUA style inline yang dibuat AR.js
+        video.removeAttribute('style');
 
-        // Sembunyikan loading, tampilkan HUD
-        setMsg('AR siap!');
-        setTimeout(() => {
-          const load = $('scr-load');
-          if (load) load.classList.add('hide');
-          const hud = $('hud');
-          if (hud) hud.classList.add('show');
-        }, 400);
+        // Terapkan style kita sendiri dengan prioritas maksimal
+        video.style.cssText = `
+          position: fixed !important;
+          top: 0 !important; left: 0 !important;
+          right: 0 !important; bottom: 0 !important;
+          width: 100vw !important; height: 100vh !important;
+          min-width: 100vw !important; min-height: 100vh !important;
+          max-width: none !important; max-height: none !important;
+          object-fit: cover !important;
+          z-index: 1 !important;
+          display: block !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+          transform: none !important;
+          background: #000 !important;
+        `;
+
+        // Pastikan atribut wajib ada
+        video.setAttribute('playsinline', '');
+        video.setAttribute('webkit-playsinline', '');
+        video.setAttribute('autoplay', '');
+        video.setAttribute('muted', '');
+        video.muted = true;
+        video.playsInline = true;
+
+        // Jika video paused, coba play
+        if (video.paused) {
+          video.play().catch(e => console.warn('Video play gagal:', e));
+        }
+
+        // Force reflow
+        void video.offsetWidth;
+
+        console.log('=== VIDEO SETUP ===');
+        console.log('Video element:', video);
+        console.log('Video srcObject:', video.srcObject);
+        console.log('Video dimensions:', video.videoWidth, 'x', video.videoHeight);
+        console.log('Video paused:', video.paused);
+        console.log('Video readyState:', video.readyState);
+
+        // Cek koneksi stream
+        if (video.srcObject) {
+          const tracks = video.srcObject.getVideoTracks();
+          console.log('Video tracks:', tracks.length);
+          tracks.forEach((t, i) => console.log(`Track ${i}:`, t.label, t.getSettings()));
+        }
+
+        // Update debug panel
+        const dbgInfo = `
+          <b>DEBUG VIDEO</b><br>
+          Video ada: ${!!video}<br>
+          srcObject: ${!!video.srcObject}<br>
+          ${video.videoWidth}x${video.videoHeight}<br>
+          paused: ${video.paused}<br>
+          readyState: ${video.readyState}<br>
+          z-index: ${getComputedStyle(video).zIndex}<br>
+          position: ${getComputedStyle(video).position}<br>
+          display: ${getComputedStyle(video).display}<br>
+          opacity: ${getComputedStyle(video).opacity}
+        `;
+        updateDebug(dbgInfo);
+
+        // Tunggu video siap, baru sembunyikan loading
+        let attempts = 0;
+        function checkReady() {
+          attempts++;
+          if ((video.readyState >= 2 && video.videoWidth > 0) || attempts > 30) {
+            setMsg('Kamera aktif!');
+            setTimeout(() => {
+              const load = $('scr-load');
+              if (load) load.classList.add('hide');
+              const hud = $('hud');
+              if (hud) hud.classList.add('show');
+            }, 300);
+          } else {
+            setMsg('Menunggu video... (' + attempts + ')');
+            setTimeout(checkReady, 150);
+          }
+        }
+        checkReady();
+
+        // Resize handler
+        setTimeout(onResize, 200);
       }, function onError(err) {
+        console.error('AR.js source error:', err);
         showErr('Kamera tidak dapat diakses',
-          'Izinkan akses kamera. Pastikan URL HTTPS. Detail: ' + (err && err.message ? err.message : err));
+          'Izinkan akses kamera. Jika tidak muncul popup izin, cek pengaturan situs di browser. Detail: ' +
+          (err && err.message ? err.message : String(err)));
       });
 
       function onResize() {
-        arToolkitSource.onResizeElement();
-        arToolkitSource.copyElementSizeTo(_renderer.domElement);
-        if (arToolkitContext.arController !== null) {
-          arToolkitSource.copyElementSizeTo(arToolkitContext.arController.canvas);
-        }
+        try {
+          arToolkitSource.onResizeElement();
+          arToolkitSource.copyElementSizeTo(_renderer.domElement);
+          if (arToolkitContext && arToolkitContext.arController !== null) {
+            arToolkitSource.copyElementSizeTo(arToolkitContext.arController.canvas);
+          }
+        } catch (e) { /* ignore */ }
       }
       window.addEventListener('resize', onResize);
 
-      // 5. AR context
+      // AR context
       const arToolkitContext = new THREEx.ArToolkitContext({
         cameraParametersUrl: 'https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/data/data/camera_para.dat',
         detectionMode: 'mono',
@@ -719,7 +816,7 @@
         _camera.projectionMatrix.copy(arToolkitContext.getProjectionMatrix());
       });
 
-      // 6. Marker root
+      // Marker root
       _markerRoot = new THREE.Group();
       _scene.add(_markerRoot);
 
@@ -729,7 +826,7 @@
         size: 1
       });
 
-      // 7. Build tree & attach ke marker
+      // Build tree
       setMsg('Membangun pohon...');
       const bT = mkBark(), gT = mkGnd(), fT = mkFig(), rT = mkRoot();
       _treeRoot = buildTree(bT, gT, fT, rT);
@@ -737,17 +834,16 @@
       _treeRoot.rotation.y = Math.PI;
       _markerRoot.add(_treeRoot);
 
-      // 8. Animasi loop
+      // Animasi loop
       let _t = 0;
       function animate() {
         requestAnimationFrame(animate);
         _t += 0.01;
 
         if (arToolkitSource.ready !== false) {
-          arToolkitContext.update(arToolkitSource.domElement);
+          try { arToolkitContext.update(arToolkitSource.domElement); } catch (e) {}
         }
 
-        // Goyangan daun
         if (_treeRoot) {
           _treeRoot.traverse(o => {
             if (o.isMesh && o.material && o.material.side === THREE.DoubleSide) {
@@ -773,7 +869,7 @@
       }
     }
 
-    // ─── KONTROL TOMBOL ──────────────────────────────
+    // ─── KONTROL ─────────────────────────────────────
     function bindControls() {
       $('c-sm').onclick = () => {
         _scale = Math.max(0.15, _scale * 0.78);
@@ -802,6 +898,31 @@
           lm.forEach((m, i) => m.color.setHSL(h + i * .013, s, l + (i % 3) * .03));
         }
         toast(_fruit ? '🌰 Mode Berbuah' : '🌿 Mode Normal');
+      };
+      $('c-dbg').onclick = function() {
+        _debugOn = !_debugOn;
+        this.classList.toggle('on', _debugOn);
+        const el = $('debug');
+        if (el) el.classList.toggle('show', _debugOn);
+        // Re-check info
+        const video = document.querySelector('video');
+        if (video) {
+          updateDebug(`
+            <b>DEBUG VIDEO</b><br>
+            Video ada: ${!!video}<br>
+            srcObject: ${!!video.srcObject}<br>
+            ${video.videoWidth}x${video.videoHeight}<br>
+            paused: ${video.paused}<br>
+            readyState: ${video.readyState}<br>
+            z-index: ${getComputedStyle(video).zIndex}<br>
+            position: ${getComputedStyle(video).position}<br>
+            display: ${getComputedStyle(video).display}<br>
+            opacity: ${getComputedStyle(video).opacity}<br>
+            display ${video.style.display}
+          `);
+        } else {
+          updateDebug('❌ Video element tidak ditemukan di DOM');
+        }
       };
       $('btn-exit').onclick = () => location.reload();
     }
