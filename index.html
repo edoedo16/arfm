@@ -143,6 +143,24 @@
       color: #e8f5e9;
     }
 
+    /* Marker detection indicator */
+    #detect-badge {
+      align-self: center;
+      padding: 6px 14px;
+      background: rgba(0,0,0,0.75);
+      border: 1px solid #666;
+      border-radius: 20px;
+      font-size: 11px;
+      color: #aaa;
+      transition: all .2s;
+      margin-bottom: 8px;
+    }
+    #detect-badge.found {
+      border-color: #4caf6e;
+      color: #4caf6e;
+      background: rgba(46,125,82,0.25);
+    }
+
     /* Toast */
     #toast {
       position: fixed; bottom: 150px;
@@ -168,9 +186,9 @@
       border-radius: 8px;
       padding: 10px 12px;
       font-family: monospace;
-      font-size: 11px;
+      font-size: 10px;
       color: #4caf6e;
-      max-width: 260px;
+      max-width: 240px;
       line-height: 1.5;
       display: none;
     }
@@ -219,7 +237,10 @@
       </div>
       <button id="btn-exit">✕ Keluar</button>
     </div>
-    <div id="hud-hint">Arahkan kamera ke marker hingga pohon muncul</div>
+    <div style="display:flex;flex-direction:column;align-items:center;">
+      <div id="detect-badge">🔍 Mencari marker...</div>
+      <div id="hud-hint">Arahkan kamera TEGAK LURUS ke marker</div>
+    </div>
     <div id="hud-bot">
       <button id="c-sm">⊖ Kecil</button>
       <button id="c-rt">↺ Putar</button>
@@ -247,12 +268,10 @@
     'use strict';
 
     // ─────────────────────────────────────────────────────────────
-    // KONFIGURASI — UBAH DI SINI KALAU PERLU
+    // KONFIGURASI
     // ─────────────────────────────────────────────────────────────
     const MARKER_SIZE_METERS = 0.15;   // Marker dicetak 15 cm
-    const TREE_SCALE = 0.025;          // Skala pohon (0.025 ≈ 25 cm)
-    // Kalau pohon kurang besar → naikkan (misal 0.03, 0.04)
-    // Kalau pohon kelewat besar → turunkan (misal 0.02, 0.015)
+    const TREE_SCALE = 0.025;          // Skala pohon (~25 cm tinggi)
     // ─────────────────────────────────────────────────────────────
 
     const $ = id => document.getElementById(id);
@@ -644,10 +663,12 @@
 
     // ─── STATE ───────────────────────────────────────
     let _scene, _camera, _renderer;
-    let _treeRoot, _markerRoot;
-    let _scaleFactor = 1;          // pengali dari TREE_SCALE untuk tombol Kecil/Besar
+    let _treeRoot, _markerRoot, _arContext;
+    let _scaleFactor = 1;
     let _extraRotY = 0;
     let _fruit = false;
+    let _markerFound = false;
+    let _lastMarkerState = false;
 
     // ─── DEBUG ───────────────────────────────────────
     let _debugOn = false;
@@ -655,6 +676,17 @@
       const el = $('debug');
       if (!el) return;
       el.innerHTML = html;
+    }
+    function setDetectBadge(found) {
+      const el = $('detect-badge');
+      if (!el) return;
+      if (found) {
+        el.textContent = '✅ Marker terdeteksi!';
+        el.classList.add('found');
+      } else {
+        el.textContent = '🔍 Mencari marker...';
+        el.classList.remove('found');
+      }
     }
 
     // ─── SETUP AR ────────────────────────────────────
@@ -701,7 +733,6 @@
       });
 
       arToolkitSource.init(function onReady() {
-        // Paksa style video agar pasti terlihat
         const video = arToolkitSource.domElement;
         if (video) {
           video.removeAttribute('style');
@@ -727,18 +758,6 @@
           console.log('Video dimensions:', video.videoWidth, 'x', video.videoHeight);
           console.log('Video readyState:', video.readyState);
         }
-
-        updateDebug(
-          '<b>DEBUG VIDEO</b><br>' +
-          'Video ada: ' + !!video + '<br>' +
-          'srcObject: ' + (video && !!video.srcObject) + '<br>' +
-          (video ? video.videoWidth + 'x' + video.videoHeight : '-') + '<br>' +
-          'paused: ' + (video && video.paused) + '<br>' +
-          'readyState: ' + (video && video.readyState) + '<br>' +
-          'z-index: ' + (video ? getComputedStyle(video).zIndex : '-') + '<br>' +
-          'display: ' + (video ? getComputedStyle(video).display : '-') + '<br>' +
-          'opacity: ' + (video ? getComputedStyle(video).opacity : '-')
-        );
 
         // Tunggu video siap
         let attempts = 0;
@@ -772,15 +791,15 @@
         try {
           arToolkitSource.onResizeElement();
           arToolkitSource.copyElementSizeTo(_renderer.domElement);
-          if (arToolkitContext && arToolkitContext.arController !== null) {
-            arToolkitSource.copyElementSizeTo(arToolkitContext.arController.canvas);
+          if (_arContext && _arContext.arController !== null) {
+            arToolkitSource.copyElementSizeTo(_arContext.arController.canvas);
           }
         } catch (e) { /* ignore */ }
       }
       window.addEventListener('resize', onResize);
 
       // AR context
-      const arToolkitContext = new THREEx.ArToolkitContext({
+      _arContext = new THREEx.ArToolkitContext({
         cameraParametersUrl: 'https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/data/data/camera_para.dat',
         detectionMode: 'mono',
         maxDetectionRate: 60,
@@ -788,40 +807,79 @@
         canvasHeight: 480
       });
 
-      arToolkitContext.init(function onCompleted() {
-        _camera.projectionMatrix.copy(arToolkitContext.getProjectionMatrix());
+      _arContext.init(function onCompleted() {
+        _camera.projectionMatrix.copy(_arContext.getProjectionMatrix());
       });
 
       // Marker root
       _markerRoot = new THREE.Group();
       _scene.add(_markerRoot);
 
-      // ─── KUNCI: ukuran marker & marker pattern ───
-      new THREEx.ArMarkerControls(arToolkitContext, _markerRoot, {
+      // ─── KUNCI: ukuran marker & marker pattern dengan smoothing ───
+      new THREEx.ArMarkerControls(_arContext, _markerRoot, {
         type: 'pattern',
         patternUrl: 'https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/data/data/patt.hiro',
-        size: MARKER_SIZE_METERS     // 0.15 m = 15 cm
+        size: MARKER_SIZE_METERS,
+        // Opsi smoothing untuk deteksi lebih stabil
+        smooth: true,
+        smoothCount: 10,
+        smoothTolerance: 0.01,
+        smoothThreshold: 3
       });
 
       // Build tree & attach
       setMsg('Membangun pohon...');
       const bT = mkBark(), gT = mkGnd(), fT = mkFig(), rT = mkRoot();
       _treeRoot = buildTree(bT, gT, fT, rT);
-      _treeRoot.scale.setScalar(TREE_SCALE);   // 0.025
+      _treeRoot.scale.setScalar(TREE_SCALE);
       _treeRoot.rotation.y = Math.PI;
       _markerRoot.add(_treeRoot);
 
+      // Marker tidak terlihat sampai terdeteksi
+      _markerRoot.visible = false;
+
       // Animasi loop
       let _t = 0;
+      let _frameCount = 0;
+
       function animate() {
         requestAnimationFrame(animate);
         _t += 0.01;
+        _frameCount++;
 
         if (arToolkitSource.ready !== false) {
-          try { arToolkitContext.update(arToolkitSource.domElement); } catch (e) {}
+          try { _arContext.update(arToolkitSource.domElement); } catch (e) {}
         }
 
-        if (_treeRoot) {
+        // Cek status deteksi marker
+        const isVisible = _markerRoot.visible;
+        if (isVisible !== _lastMarkerState) {
+          _lastMarkerState = isVisible;
+          setDetectBadge(isVisible);
+          if (isVisible) {
+            console.log('✅ Marker terdeteksi!');
+            hint('Pohon muncul! Mundur sedikit untuk melihat utuh');
+          } else {
+            console.log('❌ Marker hilang');
+            hint('Arahkan kamera TEGAK LURUS ke marker');
+          }
+        }
+
+        // Update debug panel
+        if (_debugOn && _frameCount % 15 === 0) {
+          const video = document.querySelector('video');
+          const pos = _markerRoot.position;
+          updateDebug(
+            '<b>DEBUG</b><br>' +
+            'Video: ' + (video ? video.videoWidth + 'x' + video.videoHeight : '-') + '<br>' +
+            'Ready: ' + (video ? video.readyState : '-') + '<br>' +
+            'Marker: ' + (isVisible ? '✅ FOUND' : '❌ no') + '<br>' +
+            'Pos: ' + pos.x.toFixed(2) + ',' + pos.y.toFixed(2) + ',' + pos.z.toFixed(2) + '<br>' +
+            'RotY: ' + (_extraRotY * 180 / Math.PI).toFixed(0) + '°'
+          );
+        }
+
+        if (_treeRoot && isVisible) {
           _treeRoot.traverse(o => {
             if (o.isMesh && o.material && o.material.side === THREE.DoubleSide) {
               if (!o._baseRot) o._baseRot = { x: o.rotation.x, z: o.rotation.z };
@@ -883,22 +941,6 @@
         this.classList.toggle('on', _debugOn);
         const el = $('debug');
         if (el) el.classList.toggle('show', _debugOn);
-        const video = document.querySelector('video');
-        if (video) {
-          updateDebug(
-            '<b>DEBUG VIDEO</b><br>' +
-            'Video ada: true<br>' +
-            'srcObject: ' + !!video.srcObject + '<br>' +
-            video.videoWidth + 'x' + video.videoHeight + '<br>' +
-            'paused: ' + video.paused + '<br>' +
-            'readyState: ' + video.readyState + '<br>' +
-            'z-index: ' + getComputedStyle(video).zIndex + '<br>' +
-            'display: ' + getComputedStyle(video).display + '<br>' +
-            'opacity: ' + getComputedStyle(video).opacity
-          );
-        } else {
-          updateDebug('❌ Video element tidak ditemukan');
-        }
       };
       $('btn-exit').onclick = () => location.reload();
     }
